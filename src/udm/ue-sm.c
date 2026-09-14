@@ -92,7 +92,7 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
-                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_UNSUPPORTED_RESOURCE_URI));
                 END
                 break;
 
@@ -108,7 +108,7 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
-                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_UNSUPPORTED_RESOURCE_URI));
                 END
                 break;
 
@@ -117,8 +117,8 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                         udm_ue->suci, message->h.method);
                 ogs_assert(true ==
                     ogs_sbi_server_send_error(stream,
-                        OGS_SBI_HTTP_STATUS_FORBIDDEN, message,
-                        "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
+                        OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, message,
+                        "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
             END
             break;
 
@@ -136,8 +136,8 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                             udm_ue->suci, message->h.resource.component[1]);
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
-                            OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
-                            "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                            OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, message,
+                            "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
                 END
                 break;
             CASE(OGS_SBI_HTTP_METHOD_PATCH)
@@ -153,7 +153,7 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                             ogs_sbi_server_send_error(stream,
                                 OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
                                 "Invalid resource name",
-                                message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                                message->h.method, OGS_SBI_CAUSE_UNSUPPORTED_RESOURCE_URI));
                         break;
                     }
 
@@ -178,8 +178,8 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                             udm_ue->suci, message->h.resource.component[1]);
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
-                            OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
-                            "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                            OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, message,
+                            "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
                 END
                 break;
             CASE(OGS_SBI_HTTP_METHOD_GET)
@@ -202,7 +202,7 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
-                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_UNSUPPORTED_RESOURCE_URI));
                 END
                 break;
             DEFAULT
@@ -210,8 +210,8 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                         udm_ue->suci, message->h.method);
                 ogs_assert(true ==
                     ogs_sbi_server_send_error(stream,
-                        OGS_SBI_HTTP_STATUS_FORBIDDEN, message,
-                        "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
+                        OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, message,
+                        "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
             END
             break;
 
@@ -262,7 +262,7 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
-                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_UNSUPPORTED_RESOURCE_URI));
                 END
                 break;
 
@@ -279,7 +279,7 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
-                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_UNSUPPORTED_RESOURCE_URI));
                 END
                 break;
 
@@ -296,7 +296,7 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
-                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                            "Invalid resource name", message->h.method, OGS_SBI_CAUSE_UNSUPPORTED_RESOURCE_URI));
                 END
                 break;
             DEFAULT
@@ -315,7 +315,7 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
             ogs_assert(true ==
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
-                    "Invalid API name", message->h.service.name, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                    "Invalid API name", message->h.service.name, OGS_SBI_CAUSE_UNSUPPORTED_RESOURCE_URI));
         }
         break;
 
@@ -384,7 +384,7 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
                     "Invalid API name", message->h.resource.component[0],
-                    OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                    OGS_SBI_CAUSE_UNSUPPORTED_RESOURCE_URI));
         }
         break;
 

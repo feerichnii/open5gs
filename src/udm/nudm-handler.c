@@ -119,7 +119,7 @@ bool udm_nudm_ueau_handle_get(
             ogs_assert(true ==
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                    recvmsg, "Invalid RAND", udm_ue->suci, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                    recvmsg, "Invalid RAND", udm_ue->suci, OGS_SBI_CAUSE_MANDATORY_IE_INCORRECT));
             return false;
         }
 

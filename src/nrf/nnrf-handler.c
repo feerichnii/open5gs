@@ -364,7 +364,7 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
                     "Unsupported Patch op",
                     OpenAPI_patch_operation_ToString(patch_item->op),
-                    OGS_SBI_CAUSE_OPTIONAL_IE_INCORRECT));
+                    OGS_SBI_CAUSE_MANDATORY_IE_INCORRECT));
                 return false;
             }
 

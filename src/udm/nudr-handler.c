@@ -270,8 +270,8 @@ bool udm_nudr_dr_handle_subscription_authentication(
             ogs_error("Invalid HTTP method [%s]", recvmsg->h.method);
             ogs_assert(true ==
                 ogs_sbi_server_send_error(stream,
-                    OGS_SBI_HTTP_STATUS_FORBIDDEN, recvmsg,
-                    "Invalid HTTP method", recvmsg->h.method, OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
+                    OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, recvmsg,
+                    "Invalid HTTP method", recvmsg->h.method, OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
             return false;
         END
         break;
@@ -956,8 +956,8 @@ bool udm_nudr_dr_handle_smf_registration(
                     udm_ue->suci, sess->psi, recvmsg->h.method);
             ogs_assert(true ==
                 ogs_sbi_server_send_error(stream,
-                    OGS_SBI_HTTP_STATUS_FORBIDDEN, recvmsg,
-                    "Invalid HTTP method", recvmsg->h.method, OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
+                    OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, recvmsg,
+                    "Invalid HTTP method", recvmsg->h.method, OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
         END
         break;
 

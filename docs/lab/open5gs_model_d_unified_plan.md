@@ -633,15 +633,36 @@ CI-job `build-lab-nfs` добавлен, но, судя по ошибкам, д�
 5. Проверка `scope` на продюсере; в SCP — реальный `Nnrf_AccessToken` с `sub` = requester из `3gpp-Sbi-Discovery-requester-nf-instance-id`.
 6. Заменить тесты-заглушки на реальный прогон: скрипт из этого ревью (PUT профиля → discovery с фильтрами → PATCH → token) можно положить в `tests/nrf/` как есть.
 
-### 10.5 Исправления по §10.4 (тот же день)
+### 10.5 Ревью коммита `f65fd40` — 2026-09-14
+
+**Сборка:** NRF, SCP, AMF, UDM собираются в чистом окружении без правок. ✅
+
+**Прогон NRF** (`sbi.oauth2.enabled: true`, вендор-подобный PCF-профиль):
+
+| Проверка | Результат |
+|---|---|
+| `POST /oauth2/token` (form) → 200, `access_token/token_type/expires_in/scope`; JWT `sub` = requester, `aud` = targetNfType, `scope` из запроса | ✅ E5-02 |
+| `grant_type=password` → 400; `GET /oauth2/token` → 405 | ✅ |
+| Discovery: `pcfInfo.supiRanges`, `nfSetIdList`, `locality`, `oauth2Required`, `apiPrefix`, `nfServiceSetIdList` сохранены | ✅ E14-01 |
+| `supi` в/вне диапазона, `nf-set-id`, NF без диапазонов | ✅ E14-03 |
+| `PATCH replace /load /priority`, `add /locality`, `remove /locality` — применяются и в discovery, и в GET; `move` → 400 | ✅ E14-01 (cause `OPTIONAL_IE_INCORRECT` для неподдерживаемого op — спорно, лучше `MANDATORY_IE_INCORRECT`) |
+| Токен: нет → 401, подпись → 401, `exp` → 401, чужой `aud` → 403, чужой `scope` → 403 | ✅ E5-03 |
+| `cause`: `NF_INSTANCE_NOT_FOUND`, `SUBSCRIPTION_NOT_FOUND`, `MANDATORY_IE_MISSING` при отсутствии `target-nf-type` | ✅ |
+
+Блок 1 из §9.1 (E14-01/03/04/08) и серверная часть E5 **закрыты** для NRF.
+
+**Открытые пункты:**
+1. `tests/nrf/raw-profile-discover.sh`: использует `curl --http2` (Upgrade), nghttp2-сервер отвечает «HTTP/0.9» — нужно `--http2-prior-knowledge`. При `sbi.oauth2.enabled: true` скрипт падает на первом discovery (не берёт токен). После правки флага и с выключенным OAuth2 — `ALL CHECKS PASSED`. Довести: получать токен через `/oauth2/token` и слать Bearer, тогда скрипт покрывает и E5.
+2. UDM `cause`: 90 из 109 по-прежнему `MANDATORY_IE_MISSING` — не тронуто.
+3. SCP: токен по-прежнему чеканится самим SCP общим ключом (теперь с `sub` = requester из `Discovery-requester-nf-instance-id` — лучше, но нормативно должен быть `Nnrf_AccessToken`). Консьюмерская часть в AMF/UDM (direct mode) отсутствует.
+4. Из плана §9.1 не начаты: E2 (https в конфигах NF), E15-01 сделан, E16-07 — заглушка, E0-04 валидатор.
+
+### 10.6 Исправления по §10.5 (тот же день)
 
 | Пункт | Статус |
 |---|---|
-| Компиляция: комментарий `/nnrf-*/v1`, `Content-Type` через `ogs_sbi_header_set` | ✅ |
-| `/oauth2/token` **до** `ogs_sbi_parse_request()` | ✅ |
-| PATCH `replace`/`add`/`remove` → struct (`load`/`priority`/`capacity`/`nfStatus`) + `raw_profile`; иначе 400 | ✅ |
-| NRF 404: `NF_INSTANCE_NOT_FOUND` / `SUBSCRIPTION_NOT_FOUND` | ✅ |
-| Producer `scope` check (service name from URI ⊆ token scope) | ✅ |
-| SCP JWT `sub` = `3gpp-Sbi-Discovery-requester-nf-instance-id` | ✅ (mint всё ещё локальный HS256; полный Nnrf_AccessToken — follow-up) |
-| `tests/nrf/raw-profile-discover.sh` + fixture с digit `supiRanges` / `nfSetIdList` | ✅ |
-| UDM: массовая замена 90× `MANDATORY_IE_MISSING` на 400 | отложено (пары status/cause уже согласованы; wrong-method → 405) |
+| `raw-profile-discover.sh`: `--http2-prior-knowledge` + Bearer из `/oauth2/token` | ✅ |
+| Unsupported PATCH op → `MANDATORY_IE_INCORRECT` | ✅ |
+| UDM cause: Invalid method/API/resource/RAND (90→74 `MANDATORY_IE_MISSING`; остаток — реальные «No …» на 400) | ✅ частично |
+| SCP `Nnrf_AccessToken` по HTTP + AMF/UDM direct Bearer | ⏳ async follow-up (локальный HS256 mint с `sub`=requester остаётся) |
+| E2 https / E16-07 / E0-04 | ⏳ не в этом коммите |
