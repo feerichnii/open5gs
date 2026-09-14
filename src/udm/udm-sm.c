@@ -90,7 +90,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
             ogs_assert(true ==
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                    NULL, "cannot parse HTTP message", NULL, NULL));
+                    NULL, "cannot parse HTTP message", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             break;
         }
 
@@ -109,7 +109,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
             ogs_assert(true ==
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                    &message, "Not supported version", NULL, NULL));
+                    &message, "Not supported version", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             ogs_sbi_message_free(&message);
             break;
         }
@@ -131,7 +131,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_FORBIDDEN, &message,
                             "Invalid HTTP method", message.h.method,
-                            NULL));
+                            OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
                 END
                 break;
 
@@ -142,7 +142,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
                         "Unknown resource name",
-                        message.h.resource.component[0], NULL));
+                        message.h.resource.component[0], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             END
             break;
 
@@ -154,7 +154,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
                 ogs_assert(true ==
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_NOT_FOUND,
-                        &message, "Not found", message.h.method, NULL));
+                        &message, "Not found", message.h.method, OGS_SBI_CAUSE_USER_NOT_FOUND));
                 break;
             }
 
@@ -165,7 +165,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                             &message, "Invalid resource name", message.h.method,
-                            NULL));
+                            OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                     break;
                 }
 
@@ -208,7 +208,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
                 ogs_assert(true ==
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_NOT_FOUND,
-                        &message, "Not found", message.h.method, NULL));
+                        &message, "Not found", message.h.method, OGS_SBI_CAUSE_USER_NOT_FOUND));
                 break;
             }
 
@@ -219,7 +219,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
-                            "No pduSessionId", message.h.method, NULL));
+                            "No pduSessionId", message.h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                     break;
                 }
 
@@ -231,7 +231,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                             &message, "PDU Session Identitiy unassigned",
-                            message.h.resource.component[3], NULL));
+                            message.h.resource.component[3], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                     break;
                 }
 
@@ -274,7 +274,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
             ogs_assert(true ==
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
-                    "Invalid API name", message.h.service.name, NULL));
+                    "Invalid API name", message.h.service.name, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         }
 
         /* In lib/sbi/server.c, notify_completed() releases 'request' buffer. */
@@ -661,7 +661,7 @@ void udm_state_operational(ogs_fsm_t *s, udm_event_t *e)
             ogs_assert(true ==
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_GATEWAY_TIMEOUT, NULL,
-                    "Cannot receive SBI message", NULL, NULL));
+                    "Cannot receive SBI message", NULL, OGS_SBI_CAUSE_TARGET_NF_NOT_REACHABLE));
             break;
 
         default:

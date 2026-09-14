@@ -46,6 +46,8 @@ bool nrf_nnrf_handle_nf_profile_retrieval(
 
 bool nrf_nnrf_handle_nf_discover(
         ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg);
+bool nrf_nnrf_handle_oauth2_token(
+        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg);
 
 #ifdef __cplusplus
 }

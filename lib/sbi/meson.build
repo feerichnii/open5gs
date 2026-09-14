@@ -38,7 +38,10 @@ libsbi_sources = files('''
     nnrf-build.c
     nnrf-handler.c
     nnrf-path.c
-    
+    nnrf-profile-raw.c
+    jwt.c
+    oauth.c
+
     path.c
     nf-sm.c
 '''.split())

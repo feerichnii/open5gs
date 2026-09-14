@@ -117,7 +117,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
                 ogs_assert(true ==
                     ogs_sbi_server_send_error(
                         stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                        NULL, "cannot parse HTTP header", NULL, NULL));
+                        NULL, "cannot parse HTTP header", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                 break;
             } else {
                 amf_namf_oam_handler(stream, &sbi_message, sbi_request);
@@ -135,7 +135,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
             ogs_assert(true ==
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                    NULL, "cannot parse HTTP sbi_message", NULL, NULL));
+                    NULL, "cannot parse HTTP sbi_message", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             break;
         }
 
@@ -155,7 +155,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
             ogs_assert(true ==
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                    &sbi_message, "Not supported version", NULL, NULL));
+                    &sbi_message, "Not supported version", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             ogs_sbi_message_free(&sbi_message);
             break;
         }
@@ -175,7 +175,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_FORBIDDEN, &sbi_message,
-                            "Invalid HTTP method", sbi_message.h.method, NULL));
+                            "Invalid HTTP method", sbi_message.h.method, OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
                 END
                 break;
 
@@ -186,7 +186,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_BAD_REQUEST, &sbi_message,
                         "Invalid resource name",
-                        sbi_message.h.resource.component[0], NULL));
+                        sbi_message.h.resource.component[0], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             END
             break;
 
@@ -204,7 +204,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
                                 ogs_sbi_server_send_error(stream,
                                     OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                                     &sbi_message,
-                                    "No N1N2MessageTransferReqData", NULL, NULL));
+                                    "No N1N2MessageTransferReqData", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                         }
                         break;
 
@@ -215,7 +215,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
                             ogs_sbi_server_send_error(stream,
                                 OGS_SBI_HTTP_STATUS_FORBIDDEN, &sbi_message,
                                 "Invalid HTTP method", sbi_message.h.method,
-                                NULL));
+                                OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
                     END
                     break;
 
@@ -232,7 +232,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
                             ogs_sbi_server_send_error(stream,
                                 OGS_SBI_HTTP_STATUS_FORBIDDEN, &sbi_message,
                                 "Invalid HTTP method", sbi_message.h.method,
-                                NULL));
+                                OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
                     END
                     break;
 
@@ -249,7 +249,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
                             ogs_sbi_server_send_error(stream,
                                 OGS_SBI_HTTP_STATUS_FORBIDDEN, &sbi_message,
                                 "Invalid HTTP method", sbi_message.h.method,
-                                NULL));
+                                OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
                     END
                     break;
 
@@ -260,7 +260,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, &sbi_message,
                             "Invalid resource name",
-                            sbi_message.h.resource.component[2], NULL));
+                            sbi_message.h.resource.component[2], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                 END
                 break;
 
@@ -271,7 +271,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_BAD_REQUEST, &sbi_message,
                         "Invalid resource name",
-                        sbi_message.h.resource.component[0], NULL));
+                        sbi_message.h.resource.component[0], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             END
             break;
 
@@ -302,7 +302,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_BAD_REQUEST, &sbi_message,
                         "Invalid resource name",
-                        sbi_message.h.resource.component[1], NULL));
+                        sbi_message.h.resource.component[1], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             END
             break;
 
@@ -312,7 +312,7 @@ void amf_state_operational(ogs_fsm_t *s, amf_event_t *e)
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_BAD_REQUEST, &sbi_message,
                     "Invalid API name", sbi_message.h.resource.component[0],
-                    NULL));
+                    OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         }
 
         /* In lib/sbi/server.c, notify_completed() releases 'request' buffer. */

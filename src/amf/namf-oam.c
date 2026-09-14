@@ -207,7 +207,7 @@ bool amf_namf_oam_handler(
         ogs_error("No resource specified");
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-            message, "No resource specified", NULL, NULL));
+            message, "No resource specified", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -233,7 +233,7 @@ bool amf_namf_oam_handler(
                         message->h.method);
                 ogs_assert(true == ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED,
-                    message, "Method not allowed", message->h.method, NULL));
+                    message, "Method not allowed", message->h.method, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
                 return false;
             }
         } else {
@@ -249,7 +249,7 @@ bool amf_namf_oam_handler(
                         message->h.method);
                 ogs_assert(true == ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED,
-                    message, "Method not allowed", message->h.method, NULL));
+                    message, "Method not allowed", message->h.method, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
                 return false;
             }
         }
@@ -259,7 +259,7 @@ bool amf_namf_oam_handler(
     ogs_error("Invalid OAM resource [%s]", resource);
     ogs_assert(true == ogs_sbi_server_send_error(
         stream, OGS_SBI_HTTP_STATUS_NOT_FOUND,
-        message, "Resource not found", resource, NULL));
+        message, "Resource not found", resource, OGS_SBI_CAUSE_USER_NOT_FOUND));
 
     return false;
 }
@@ -406,7 +406,7 @@ bool namf_oam_handle_plmns_get_by_id(ogs_sbi_stream_t *stream, ogs_sbi_message_t
         ogs_error("[OAM] Missing PLMN ID in path");
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-            message, "Missing PLMN ID", NULL, NULL));
+            message, "Missing PLMN ID", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -452,7 +452,7 @@ bool namf_oam_handle_plmns_get_by_id(ogs_sbi_stream_t *stream, ogs_sbi_message_t
         ogs_error("[OAM] PLMN not found: %s", plmn_id_str);
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_NOT_FOUND,
-            message, "PLMN not found", plmn_id_str, NULL));
+            message, "PLMN not found", plmn_id_str, OGS_SBI_CAUSE_USER_NOT_FOUND));
         return false;
     }
 
@@ -506,7 +506,7 @@ bool namf_oam_handle_plmns_delete(ogs_sbi_stream_t *stream, ogs_sbi_message_t *m
         ogs_error("[OAM] Missing PLMN ID in path");
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-            message, "Missing PLMN ID", NULL, NULL));
+            message, "Missing PLMN ID", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -550,7 +550,7 @@ bool namf_oam_handle_plmns_delete(ogs_sbi_stream_t *stream, ogs_sbi_message_t *m
         ogs_error("[OAM] PLMN not found for deletion: %s", plmn_id_str);
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_NOT_FOUND,
-            message, "PLMN not found", plmn_id_str, NULL));
+            message, "PLMN not found", plmn_id_str, OGS_SBI_CAUSE_USER_NOT_FOUND));
         return false;
     }
 
@@ -640,7 +640,7 @@ bool namf_oam_handle_plmns_post(
             OGS_MAX_NUM_OF_PLMN);
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_CONFLICT,
-            message, "Maximum number of PLMNs reached", NULL, NULL));
+            message, "Maximum number of PLMNs reached", NULL, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
         return false;
     }
 
@@ -649,7 +649,7 @@ bool namf_oam_handle_plmns_post(
         ogs_error("[OAM] POST /plmns: empty body");
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-            message, "Request body is required", NULL, NULL));
+            message, "Request body is required", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -658,7 +658,7 @@ bool namf_oam_handle_plmns_post(
         ogs_error("[OAM] Failed to parse JSON request");
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-            message, "Invalid JSON format", NULL, NULL));
+            message, "Invalid JSON format", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -669,7 +669,7 @@ bool namf_oam_handle_plmns_post(
         cJSON_Delete(root);
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-            message, "Missing 'plmn_id' field", NULL, NULL));
+            message, "Missing 'plmn_id' field", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -682,7 +682,7 @@ bool namf_oam_handle_plmns_post(
         cJSON_Delete(root);
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-            message, "plmn_id must contain 'mcc' and 'mnc' strings", NULL, NULL));
+            message, "plmn_id must contain 'mcc' and 'mnc' strings", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -697,7 +697,7 @@ bool namf_oam_handle_plmns_post(
         cJSON_Delete(root);
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-            message, "Invalid MCC/MNC values", NULL, NULL));
+            message, "Invalid MCC/MNC values", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -711,7 +711,7 @@ bool namf_oam_handle_plmns_post(
         cJSON_Delete(root);
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-            message, "'s_nssai' must be an array", NULL, NULL));
+            message, "'s_nssai' must be an array", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -722,7 +722,7 @@ bool namf_oam_handle_plmns_post(
         cJSON_Delete(root);
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-            message, "Invalid number of slices", NULL, NULL));
+            message, "Invalid number of slices", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -739,7 +739,7 @@ bool namf_oam_handle_plmns_post(
             cJSON_Delete(root);
             ogs_assert(true == ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                message, "Each slice must have 'sst' (number)", NULL, NULL));
+                message, "Each slice must have 'sst' (number)", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             return false;
         }
 
@@ -778,7 +778,7 @@ bool namf_oam_handle_plmns_post(
             ogs_assert(error_msg);
             ogs_assert(true == ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_CONFLICT,
-                message, error_msg, NULL, NULL));
+                message, error_msg, NULL, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
             ogs_free(error_msg);
 
             return false;

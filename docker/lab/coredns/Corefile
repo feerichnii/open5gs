@@ -1,0 +1,10 @@
+. {
+  forward . 1.1.1.1
+  hosts {
+    10.5.0.10 nrf01.5gc.lab
+    10.5.0.11 scp01.5gc.lab
+    10.5.0.12 amf01.5gc.lab
+    10.5.0.13 udm01.5gc.lab
+    fallthrough
+  }
+}

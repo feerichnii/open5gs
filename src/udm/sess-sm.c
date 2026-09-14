@@ -98,7 +98,7 @@ void udm_sess_state_operational(ogs_fsm_t *s, udm_event_t *e)
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_FORBIDDEN, message,
                             "Invalid HTTP method", message->h.method,
-                            NULL));
+                            OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
                 END
                 break;
             DEFAULT
@@ -108,7 +108,7 @@ void udm_sess_state_operational(ogs_fsm_t *s, udm_event_t *e)
                 ogs_assert(true ==
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
-                        "Invalid HTTP method", message->h.method, NULL));
+                        "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             END
             break;
 
@@ -117,7 +117,7 @@ void udm_sess_state_operational(ogs_fsm_t *s, udm_event_t *e)
             ogs_assert(true ==
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_BAD_REQUEST, message,
-                    "Invalid API name", message->h.service.name, NULL));
+                    "Invalid API name", message->h.service.name, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         }
         break;
 

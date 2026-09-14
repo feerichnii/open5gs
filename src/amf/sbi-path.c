@@ -100,12 +100,44 @@ int amf_ue_sbi_discover_and_send(
     int rv;
     ogs_sbi_xact_t *xact = NULL;
     OpenAPI_nf_type_e target_nf_type = OpenAPI_nf_type_NULL;
+    char routing_indicator[5];
 
     ogs_assert(service_name);
     target_nf_type = ogs_sbi_service_name_to_nf_type(service_name);
     ogs_assert(target_nf_type);
     ogs_assert(amf_ue);
     ogs_assert(build);
+
+    if ((target_nf_type == OpenAPI_nf_type_AUSF ||
+        target_nf_type == OpenAPI_nf_type_UDM)) {
+        ogs_nas_5gs_mobile_identity_suci_t *mi =
+            &amf_ue->nas_mobile_identity_suci;
+
+        if (!discovery_option) {
+            discovery_option = ogs_sbi_discovery_option_new();
+            ogs_assert(discovery_option);
+        }
+
+        memset(routing_indicator, 0, sizeof(routing_indicator));
+        if (mi->routing_indicator1 != 0xf) {
+            routing_indicator[0] = mi->routing_indicator1 + '0';
+            if (mi->routing_indicator2 != 0xf) {
+                routing_indicator[1] = mi->routing_indicator2 + '0';
+                if (mi->routing_indicator3 != 0xf) {
+                    routing_indicator[2] = mi->routing_indicator3 + '0';
+                    if (mi->routing_indicator4 != 0xf)
+                        routing_indicator[3] = mi->routing_indicator4 + '0';
+                }
+            }
+        }
+        if (routing_indicator[0] && !discovery_option->routing_indicator)
+            ogs_sbi_discovery_option_set_routing_indicator(
+                    discovery_option, routing_indicator);
+
+        if (amf_ue->supi && target_nf_type == OpenAPI_nf_type_UDM &&
+                !discovery_option->supi)
+            ogs_sbi_discovery_option_set_supi(discovery_option, amf_ue->supi);
+    }
 
     if ((target_nf_type == OpenAPI_nf_type_AUSF ||
         target_nf_type == OpenAPI_nf_type_UDM) &&

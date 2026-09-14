@@ -1176,6 +1176,26 @@ static void build_default_discovery_parameter(
                                 &discovery_option->requester_plmn_list[0]));
             }
         }
+
+        if (discovery_option->supi) {
+            ogs_sbi_header_set(request->http.headers,
+                    OGS_SBI_CUSTOM_DISCOVERY_SUPI, discovery_option->supi);
+        }
+        if (discovery_option->routing_indicator) {
+            ogs_sbi_header_set(request->http.headers,
+                    OGS_SBI_CUSTOM_DISCOVERY_ROUTING_INDICATOR,
+                    discovery_option->routing_indicator);
+        }
+        if (discovery_option->nf_set_id) {
+            ogs_sbi_header_set(request->http.headers,
+                    OGS_SBI_CUSTOM_DISCOVERY_NF_SET_ID,
+                    discovery_option->nf_set_id);
+        }
+        if (discovery_option->preferred_locality) {
+            ogs_sbi_header_set(request->http.headers,
+                    OGS_SBI_CUSTOM_DISCOVERY_PREFERRED_LOCALITY,
+                    discovery_option->preferred_locality);
+        }
     }
 
     if (local_discovery_option)

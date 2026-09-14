@@ -1,0 +1,17 @@
+# Lab topology: Open5GS NRF/SCP/AMF/UDM + DNS (E1)
+# Extend with vendor NFs on external networks for SWAP tests.
+
+services:
+  coredns:
+    image: coredns/coredns:1.11.1
+    volumes:
+      - ./coredns:/etc/coredns:ro
+    networks:
+      sbi:
+        ipv4_address: 10.5.0.2
+
+networks:
+  sbi:
+    ipam:
+      config:
+        - subnet: 10.5.0.0/24

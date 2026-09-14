@@ -313,6 +313,14 @@ extern "C" {
     OGS_SBI_CUSTOM_DISCOVERY_COMMON OGS_SBI_PARAM_GUAMI
 #define OGS_SBI_CUSTOM_DISCOVERY_HNRF_URI  \
     OGS_SBI_CUSTOM_DISCOVERY_COMMON OGS_SBI_PARAM_HNRF_URI
+#define OGS_SBI_CUSTOM_DISCOVERY_SUPI  \
+    OGS_SBI_CUSTOM_DISCOVERY_COMMON OGS_SBI_PARAM_SUPI
+#define OGS_SBI_CUSTOM_DISCOVERY_ROUTING_INDICATOR  \
+    OGS_SBI_CUSTOM_DISCOVERY_COMMON OGS_SBI_PARAM_ROUTING_INDICATOR
+#define OGS_SBI_CUSTOM_DISCOVERY_NF_SET_ID  \
+    OGS_SBI_CUSTOM_DISCOVERY_COMMON OGS_SBI_PARAM_NF_SET_ID
+#define OGS_SBI_CUSTOM_DISCOVERY_PREFERRED_LOCALITY  \
+    OGS_SBI_CUSTOM_DISCOVERY_COMMON OGS_SBI_PARAM_PREFERRED_LOCALITY
 #define OGS_SBI_CUSTOM_PRODUCER_ID       \
     OGS_SBI_CUSTOM_3GPP_COMMON "Producer-Id"
 #define OGS_SBI_CUSTOM_OCI               \
@@ -359,6 +367,10 @@ extern "C" {
 #define OGS_SBI_PARAM_IPV6PREFIX                    "ipv6Prefix"
 #define OGS_SBI_PARAM_HOME_PLMN_ID                  "home-plmn-id"
 #define OGS_SBI_PARAM_HNRF_URI                      "hnrf-uri"
+#define OGS_SBI_PARAM_SUPI                          "supi"
+#define OGS_SBI_PARAM_ROUTING_INDICATOR             "routing-indicator"
+#define OGS_SBI_PARAM_NF_SET_ID                     "nf-set-id"
+#define OGS_SBI_PARAM_PREFERRED_LOCALITY            "preferred-locality"
 
 #define OGS_SBI_PARAM_FIELDS_GPSIS                       "gpsis"
 #define OGS_SBI_PARAM_FIELDS_SUBSCRIBED_UE_AMBR          "subscribedUeAmbr"
@@ -475,6 +487,11 @@ typedef struct ogs_sbi_discovery_option_s {
     ogs_plmn_id_t requester_plmn_list[OGS_MAX_NUM_OF_PLMN];
 
     char *hnrf_uri;
+
+    char *supi;
+    char *routing_indicator;
+    char *nf_set_id;
+    char *preferred_locality;
 
     uint64_t requester_features;
 } ogs_sbi_discovery_option_t;
@@ -743,6 +760,15 @@ void ogs_sbi_discovery_option_set_hnrf_uri(
         ogs_sbi_discovery_option_t *discovery_option, char *hnrf_uri);
 void ogs_sbi_discovery_option_clear_hnrf_uri(
         ogs_sbi_discovery_option_t *discovery_option);
+
+void ogs_sbi_discovery_option_set_supi(
+        ogs_sbi_discovery_option_t *discovery_option, char *supi);
+void ogs_sbi_discovery_option_set_routing_indicator(
+        ogs_sbi_discovery_option_t *discovery_option, char *routing_indicator);
+void ogs_sbi_discovery_option_set_nf_set_id(
+        ogs_sbi_discovery_option_t *discovery_option, char *nf_set_id);
+void ogs_sbi_discovery_option_set_preferred_locality(
+        ogs_sbi_discovery_option_t *discovery_option, char *locality);
 
 #ifdef __cplusplus
 }

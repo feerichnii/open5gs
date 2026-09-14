@@ -157,6 +157,24 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
         return OGS_ERROR;
     }
 
+    {
+        int via_hops = 0;
+        for (hi = ogs_hash_first(request->http.headers);
+                hi; hi = ogs_hash_next(hi)) {
+            const char *key = ogs_hash_this_key(hi);
+            if (key && !strcasecmp(key, "Via"))
+                via_hops++;
+        }
+        if (via_hops > 8) {
+            ogs_error("SCP loop detected (Via hops=%d)", via_hops);
+            ogs_sbi_server_send_error(stream,
+                    OGS_SBI_HTTP_STATUS_BAD_GATEWAY, NULL,
+                    "SCP routing loop detected", request->h.uri,
+                    OGS_SBI_CAUSE_SCP_INTERNAL_ERROR);
+            return OGS_OK;
+        }
+    }
+
     /* SCP Context */
     assoc = scp_assoc_add(stream_id);
     if (!assoc) {
@@ -272,7 +290,7 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
-                            "Invalid service-names", val, NULL));
+                            "Invalid service-names", val, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                     return OGS_OK;
                 }
             }
@@ -306,7 +324,7 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
-                            "Invalid snssais", val, NULL));
+                            "Invalid snssais", val, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                     return OGS_OK;
                 }
             }
@@ -319,7 +337,7 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
-                            "Invalid guami", val, NULL));
+                            "Invalid guami", val, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                     return OGS_OK;
                 }
             }
@@ -334,7 +352,7 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
-                            "Invalid tai", val, NULL));
+                            "Invalid tai", val, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                     return OGS_OK;
                 }
             }
@@ -348,7 +366,7 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
-                            "Invalid target-plmn-list", val, NULL));
+                            "Invalid target-plmn-list", val, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                     return OGS_OK;
                 }
                 discovery_option->num_of_target_plmn_list = n;
@@ -366,7 +384,7 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
-                            "Invalid requester-plmn-list", val, NULL));
+                            "Invalid requester-plmn-list", val, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                     return OGS_OK;
                 }
                 discovery_option->num_of_requester_plmn_list = n;
@@ -376,6 +394,18 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
             if (val)
                 discovery_option->requester_features =
                     ogs_uint64_from_string_hexadecimal(val);
+        } else if (!strcasecmp(key, OGS_SBI_CUSTOM_DISCOVERY_SUPI)) {
+            ogs_sbi_discovery_option_set_supi(discovery_option, val);
+        } else if (!strcasecmp(key,
+                    OGS_SBI_CUSTOM_DISCOVERY_ROUTING_INDICATOR)) {
+            ogs_sbi_discovery_option_set_routing_indicator(
+                    discovery_option, val);
+        } else if (!strcasecmp(key, OGS_SBI_CUSTOM_DISCOVERY_NF_SET_ID)) {
+            ogs_sbi_discovery_option_set_nf_set_id(discovery_option, val);
+        } else if (!strcasecmp(key,
+                    OGS_SBI_CUSTOM_DISCOVERY_PREFERRED_LOCALITY)) {
+            ogs_sbi_discovery_option_set_preferred_locality(
+                    discovery_option, val);
         } else {
             /* ':scheme' and ':authority' will be automatically filled in later */
         }
@@ -560,7 +590,7 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
                         "Invalid Target-apiRoot", headers.target_apiroot,
-                        NULL));
+                        OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                 return OGS_OK;
             }
 
@@ -673,7 +703,7 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
-                            "Invalid nnrf-disc", nnrf_disc, NULL));
+                            "Invalid nnrf-disc", nnrf_disc, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
 
                     if (nnrf_nfm) ogs_free(nnrf_nfm);
                     ogs_free(nnrf_disc);
@@ -1038,7 +1068,7 @@ cleanup:
 
     if (stream) {
         ogs_assert(true == ogs_sbi_server_send_error(
-                stream, res_status, NULL, strerror, NULL, NULL));
+                stream, res_status, NULL, strerror, NULL, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
     } else
         ogs_error("STREAM has already been removed [%d]", stream_id);
 
@@ -1163,7 +1193,7 @@ cleanup:
 
     if (stream) {
         ogs_assert(true == ogs_sbi_server_send_error(
-                stream, res_status, NULL, strerror, NULL, NULL));
+                stream, res_status, NULL, strerror, NULL, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
     } else
         ogs_error("STREAM has already been removed [%d]", stream_id);
 

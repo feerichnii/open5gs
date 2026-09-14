@@ -1319,6 +1319,9 @@ static int on_frame_recv(nghttp2_session *session,
                 break;
             }
 
+            if (!ogs_sbi_oauth_server_authorize(stream, request))
+                break;
+
             if (server->cb(request,
                         OGS_UINT_TO_POINTER(stream->id)) != OGS_OK) {
                 ogs_warn("server callback error");

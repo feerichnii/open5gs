@@ -76,6 +76,7 @@ typedef struct amf_context_s {
 
     /* Access Control */
     int             default_reject_cause;
+    bool            pcf_mandatory;
     int             num_of_access_control;
     struct {
         int reject_cause;

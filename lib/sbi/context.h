@@ -106,6 +106,13 @@ typedef struct ogs_sbi_context_s {
 
     const char *content_encoding;
 
+    struct {
+        bool enabled;
+        char *issuer;
+        char *signing_key;
+        int token_ttl;
+    } oauth2;
+
     int num_of_service_name;
     OpenAPI_service_name_e service_name[OGS_SBI_MAX_NUM_OF_SERVICE_NAME];
 } ogs_sbi_context_t;
@@ -198,6 +205,9 @@ typedef struct ogs_sbi_nf_instance_s {
 
     ogs_list_t nf_service_list;
     ogs_list_t nf_info_list;
+
+    /* Original NFProfile JSON from Nnrf_NFManagement (E14) */
+    cJSON *raw_profile;
 
 #define NF_INSTANCE_CLIENT(__nFInstance) \
     ((__nFInstance) ? ((__nFInstance)->client) : NULL)

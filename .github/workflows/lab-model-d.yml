@@ -1,0 +1,14 @@
+name: Lab Model D checks
+on:
+  push:
+    branches: [lab/model-d, main]
+  pull_request:
+    branches: [lab/model-d, main]
+
+jobs:
+  cause-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: E7-05 cause audit (NRF/SCP/AMF/UDM)
+        run: sh misc/lab/check-sbi-cause.sh

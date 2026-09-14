@@ -48,6 +48,7 @@ void amf_context_init(void)
 
     /* Initialize AMF context */
     memset(&self, 0, sizeof(amf_context_t));
+    self.pcf_mandatory = true;
 
     ogs_log_install_domain(&__ogs_sctp_domain, "sctp", ogs_core()->log.level);
     ogs_log_install_domain(&__ogs_ngap_domain, "ngap", ogs_core()->log.level);
@@ -228,6 +229,20 @@ int amf_context_parse_config(void)
                 if (!strcmp(amf_key, "relative_capacity")) {
                     const char *v = ogs_yaml_iter_value(&amf_iter);
                     if (v) self.relative_capacity = atoi(v);
+                } else if (!strcmp(amf_key, "pcf")) {
+                    ogs_yaml_iter_t pcf_iter;
+                    ogs_yaml_iter_recurse(&amf_iter, &pcf_iter);
+                    while (ogs_yaml_iter_next(&pcf_iter)) {
+                        const char *pcf_key = ogs_yaml_iter_key(&pcf_iter);
+                        if (!pcf_key)
+                            continue;
+                        if (!strcmp(pcf_key, "mandatory")) {
+                            const char *v = ogs_yaml_iter_value(&pcf_iter);
+                            if (v)
+                                self.pcf_mandatory =
+                                    (strcmp(v, "false") != 0);
+                        }
+                    }
                 } else if (!strcmp(amf_key, "ngap")) {
                     ogs_yaml_iter_t ngap_iter;
                     ogs_yaml_iter_recurse(&amf_iter, &ngap_iter);

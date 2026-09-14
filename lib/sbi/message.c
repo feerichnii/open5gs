@@ -575,6 +575,24 @@ ogs_sbi_request_t *ogs_sbi_build_request(ogs_sbi_message_t *message)
             ogs_sbi_header_set(request->http.params,
                     OGS_SBI_PARAM_HNRF_URI, discovery_option->hnrf_uri);
         }
+        if (discovery_option->supi) {
+            ogs_sbi_header_set(request->http.params,
+                    OGS_SBI_PARAM_SUPI, discovery_option->supi);
+        }
+        if (discovery_option->routing_indicator) {
+            ogs_sbi_header_set(request->http.params,
+                    OGS_SBI_PARAM_ROUTING_INDICATOR,
+                    discovery_option->routing_indicator);
+        }
+        if (discovery_option->nf_set_id) {
+            ogs_sbi_header_set(request->http.params,
+                    OGS_SBI_PARAM_NF_SET_ID, discovery_option->nf_set_id);
+        }
+        if (discovery_option->preferred_locality) {
+            ogs_sbi_header_set(request->http.params,
+                    OGS_SBI_PARAM_PREFERRED_LOCALITY,
+                    discovery_option->preferred_locality);
+        }
         if (discovery_option->requester_features) {
             char *v = ogs_uint64_to_string(
                     discovery_option->requester_features);
@@ -1094,6 +1112,34 @@ int ogs_sbi_parse_request(
             char *v = ogs_hash_this_val(hi);
             if (v) {
                 ogs_sbi_discovery_option_set_hnrf_uri(discovery_option, v);
+                discovery_option_presence = true;
+            }
+        } else if (!strcmp(ogs_hash_this_key(hi), OGS_SBI_PARAM_SUPI)) {
+            char *v = ogs_hash_this_val(hi);
+            if (v) {
+                ogs_sbi_discovery_option_set_supi(discovery_option, v);
+                discovery_option_presence = true;
+            }
+        } else if (!strcmp(ogs_hash_this_key(hi),
+                    OGS_SBI_PARAM_ROUTING_INDICATOR)) {
+            char *v = ogs_hash_this_val(hi);
+            if (v) {
+                ogs_sbi_discovery_option_set_routing_indicator(
+                        discovery_option, v);
+                discovery_option_presence = true;
+            }
+        } else if (!strcmp(ogs_hash_this_key(hi), OGS_SBI_PARAM_NF_SET_ID)) {
+            char *v = ogs_hash_this_val(hi);
+            if (v) {
+                ogs_sbi_discovery_option_set_nf_set_id(discovery_option, v);
+                discovery_option_presence = true;
+            }
+        } else if (!strcmp(ogs_hash_this_key(hi),
+                    OGS_SBI_PARAM_PREFERRED_LOCALITY)) {
+            char *v = ogs_hash_this_val(hi);
+            if (v) {
+                ogs_sbi_discovery_option_set_preferred_locality(
+                        discovery_option, v);
                 discovery_option_presence = true;
             }
         } else if (!strcmp(ogs_hash_this_key(hi),
@@ -3721,6 +3767,14 @@ void ogs_sbi_discovery_option_free(
 
     if (discovery_option->hnrf_uri)
         ogs_free(discovery_option->hnrf_uri);
+    if (discovery_option->supi)
+        ogs_free(discovery_option->supi);
+    if (discovery_option->routing_indicator)
+        ogs_free(discovery_option->routing_indicator);
+    if (discovery_option->nf_set_id)
+        ogs_free(discovery_option->nf_set_id);
+    if (discovery_option->preferred_locality)
+        ogs_free(discovery_option->preferred_locality);
 
     ogs_free(discovery_option);
 }
@@ -4333,4 +4387,45 @@ void ogs_sbi_discovery_option_clear_hnrf_uri(
     ogs_assert(discovery_option);
     ogs_free(discovery_option->hnrf_uri);
     discovery_option->hnrf_uri = NULL;
+}
+
+static void ogs_sbi_discovery_option_set_string_field(
+        char **field, const char *value)
+{
+    ogs_assert(field);
+    ogs_assert(value);
+    ogs_assert(!*field);
+    *field = ogs_strdup(value);
+    ogs_assert(*field);
+}
+
+void ogs_sbi_discovery_option_set_supi(
+        ogs_sbi_discovery_option_t *discovery_option, char *supi)
+{
+    ogs_assert(discovery_option);
+    ogs_sbi_discovery_option_set_string_field(&discovery_option->supi, supi);
+}
+
+void ogs_sbi_discovery_option_set_routing_indicator(
+        ogs_sbi_discovery_option_t *discovery_option, char *routing_indicator)
+{
+    ogs_assert(discovery_option);
+    ogs_sbi_discovery_option_set_string_field(
+            &discovery_option->routing_indicator, routing_indicator);
+}
+
+void ogs_sbi_discovery_option_set_nf_set_id(
+        ogs_sbi_discovery_option_t *discovery_option, char *nf_set_id)
+{
+    ogs_assert(discovery_option);
+    ogs_sbi_discovery_option_set_string_field(
+            &discovery_option->nf_set_id, nf_set_id);
+}
+
+void ogs_sbi_discovery_option_set_preferred_locality(
+        ogs_sbi_discovery_option_t *discovery_option, char *locality)
+{
+    ogs_assert(discovery_option);
+    ogs_sbi_discovery_option_set_string_field(
+            &discovery_option->preferred_locality, locality);
 }

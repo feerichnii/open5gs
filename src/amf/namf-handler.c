@@ -1311,7 +1311,7 @@ cleanup:
     ogs_error("%s", strerror);
 
     ogs_assert(true ==
-        ogs_sbi_server_send_error(stream, status, NULL, strerror, NULL, NULL));
+        ogs_sbi_server_send_error(stream, status, NULL, strerror, NULL, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
     ogs_free(strerror);
 
     return OGS_ERROR;
@@ -2022,7 +2022,7 @@ cleanup:
     ogs_assert(strerror);
     ogs_error("%s", strerror);
 
-    ogs_assert(true == ogs_sbi_server_send_error(stream, status, NULL, strerror, NULL, NULL));
+    ogs_assert(true == ogs_sbi_server_send_error(stream, status, NULL, strerror, NULL, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
     ogs_free(strerror);
 
     if (amf_ue)

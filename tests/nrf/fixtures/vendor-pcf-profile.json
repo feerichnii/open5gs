@@ -1,0 +1,20 @@
+{
+  "nfInstanceId": "00000000-1111-2222-3333-444455556666",
+  "nfType": "PCF",
+  "nfStatus": "REGISTERED",
+  "heartBeatTimer": 10,
+  "plmnList": [{"mcc": "001", "mnc": "01"}],
+  "fqdn": "pcf.vendor.example",
+  "pcfInfo": {
+    "supiRanges": [{"start": "imsi-001010000000001", "end": "imsi-001010000000099"}],
+    "dnnList": ["internet"]
+  },
+  "nfServices": [{
+    "serviceInstanceId": "npcf-am-policy-control-1",
+    "serviceName": "npcf-am-policy-control",
+    "versions": [{"apiVersionInUri": "v1", "apiFullVersion": "1.0.0"}],
+    "scheme": "http",
+    "nfServiceStatus": "REGISTERED",
+    "ipEndPoints": [{"ipv4Address": "10.9.0.5", "port": 7777}]
+  }]
+}

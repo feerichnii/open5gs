@@ -104,6 +104,16 @@ OpenAPI_nf_profile_t *ogs_nnrf_nfm_build_nf_profile(
         ogs_sbi_discovery_option_t *discovery_option,
         bool service_map)
 {
+    return ogs_nnrf_nfm_build_nf_profile_from_instance(
+            nf_instance, service_name, discovery_option, service_map);
+}
+
+OpenAPI_nf_profile_t *ogs_nnrf_nfm_build_nf_profile_legacy(
+        ogs_sbi_nf_instance_t *nf_instance,
+        const OpenAPI_service_name_e service_name,
+        ogs_sbi_discovery_option_t *discovery_option,
+        bool service_map)
+{
     ogs_sbi_nf_service_t *nf_service = NULL;
     ogs_sbi_nf_info_t *nf_info = NULL;
 

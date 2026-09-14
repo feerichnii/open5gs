@@ -131,6 +131,10 @@ static int ogs_sbi_context_prepare(void)
     self.client_delegated_config.nrf.disc = OGS_SBI_CLIENT_DELEGATED_AUTO;
     self.client_delegated_config.scp.next = OGS_SBI_CLIENT_DELEGATED_AUTO;
 
+    self.oauth2.enabled = false;
+    self.oauth2.token_ttl = 3600;
+    self.oauth2.issuer = ogs_strdup("nrf.5gc.lab");
+
     return OGS_OK;
 }
 
@@ -610,6 +614,32 @@ int ogs_sbi_context_parse_config(
                                                 "key `%s`", del_key);
                                         }
                                     }
+                                }
+                            }
+                        } else if (!strcmp(sbi_key, "oauth2")) {
+                            ogs_yaml_iter_t oauth_iter;
+                            ogs_yaml_iter_recurse(&sbi_iter, &oauth_iter);
+                            while (ogs_yaml_iter_next(&oauth_iter)) {
+                                const char *oauth_key =
+                                    ogs_yaml_iter_key(&oauth_iter);
+                                const char *v =
+                                    ogs_yaml_iter_value(&oauth_iter);
+                                if (!oauth_key)
+                                    continue;
+                                if (!strcmp(oauth_key, "enabled")) {
+                                    self.oauth2.enabled =
+                                        ogs_yaml_iter_bool(&oauth_iter);
+                                } else if (!strcmp(oauth_key, "issuer")) {
+                                    if (v) {
+                                        ogs_free(self.oauth2.issuer);
+                                        self.oauth2.issuer = ogs_strdup(v);
+                                    }
+                                } else if (!strcmp(oauth_key, "signing_key")) {
+                                    if (v)
+                                        self.oauth2.signing_key = ogs_strdup(v);
+                                } else if (!strcmp(oauth_key, "token_ttl")) {
+                                    if (v)
+                                        self.oauth2.token_ttl = atoi(v);
                                 }
                             }
                         } else
@@ -1382,6 +1412,8 @@ void ogs_sbi_nf_instance_remove(ogs_sbi_nf_instance_t *nf_instance)
 
     if (nf_instance->client)
         ogs_sbi_client_remove(nf_instance->client);
+
+    ogs_sbi_nf_instance_clear_raw_profile(nf_instance);
 
     ogs_pool_free(&nf_instance_pool, nf_instance);
 }
@@ -2295,6 +2327,29 @@ bool ogs_sbi_discovery_option_is_matched(
         smf_info_checked &&
         need_smf_any &&
         smf_match_found == false)
+        return false;
+
+    if (discovery_option->supi && nf_instance->raw_profile &&
+            ogs_sbi_raw_profile_match_supi(
+                nf_instance->raw_profile, discovery_option->supi) == false)
+        return false;
+
+    if (discovery_option->routing_indicator && nf_instance->raw_profile &&
+            ogs_sbi_raw_profile_match_routing_indicator(
+                nf_instance->raw_profile,
+                discovery_option->routing_indicator) == false)
+        return false;
+
+    if (discovery_option->nf_set_id && nf_instance->raw_profile &&
+            ogs_sbi_raw_profile_match_nf_set_id(
+                nf_instance->raw_profile,
+                discovery_option->nf_set_id) == false)
+        return false;
+
+    if (discovery_option->preferred_locality && nf_instance->raw_profile &&
+            ogs_sbi_raw_profile_match_preferred_locality(
+                nf_instance->raw_profile,
+                discovery_option->preferred_locality) == false)
         return false;
 
     return true;

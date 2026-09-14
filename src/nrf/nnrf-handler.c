@@ -55,7 +55,7 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
         ogs_error("No NFProfile");
         ogs_assert(true ==
             ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                recvmsg, "No NFProfile", NULL, NULL));
+                recvmsg, "No NFProfile", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -64,7 +64,7 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
         ogs_assert(true ==
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                recvmsg, "No NFProfile.NFInstanceId", NULL, NULL));
+                recvmsg, "No NFProfile.NFInstanceId", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -73,7 +73,7 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
         ogs_assert(true ==
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                recvmsg, "No NFProfile.NFType", NULL, NULL));
+                recvmsg, "No NFProfile.NFType", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -82,7 +82,7 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
         ogs_assert(true ==
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                recvmsg, "No NFProfile.NFStatus", NULL, NULL));
+                recvmsg, "No NFProfile.NFStatus", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -102,7 +102,7 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
         ogs_assert(true ==
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                recvmsg, "Invalid heartBeatTimer", NULL, NULL));
+                recvmsg, "Invalid heartBeatTimer", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -136,7 +136,7 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
             ogs_error("PLMN-ID in NFProfile is not allowed");
             ogs_assert(true == ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
-                "PLMN-ID not allowed", NULL, NULL));
+                "PLMN-ID not allowed", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             return false;
         }
     }
@@ -155,10 +155,21 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
          */
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-            recvmsg, "Invalid NFProfile", NFProfile->nf_instance_id, NULL));
+            recvmsg, "Invalid NFProfile", NFProfile->nf_instance_id,
+            OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
 
         return false;
     }
+
+    if (recvmsg->http.content) {
+        cJSON *raw = cJSON_Parse(recvmsg->http.content);
+        if (raw)
+            ogs_sbi_nf_instance_set_raw_profile(nf_instance, raw);
+        else
+            ogs_error("[%s] cJSON_Parse(NFProfile) failed",
+                    NFProfile->nf_instance_id);
+    }
+
     ogs_sbi_client_associate(nf_instance);
 
     /* ---------------------------------------------------------- */
@@ -173,7 +184,7 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
         ogs_assert(true ==
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
-                "NFProfile has no usable endpoint", nf_instance->id, NULL));
+                "NFProfile has no usable endpoint", nf_instance->id, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
 
         return false;
     }
@@ -324,7 +335,7 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
             ogs_assert(true ==
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                    recvmsg, "No PatchItemList", NULL, NULL));
+                    recvmsg, "No PatchItemList", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             return false;
         }
 
@@ -335,7 +346,7 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
                 ogs_error("No PatchItem");
                 ogs_assert(true == ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
-                    "No PatchItem", NULL, NULL));
+                    "No PatchItem", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                 return false;
             }
 
@@ -366,7 +377,7 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
                         ogs_error("Value for /plmnList is not a JSON array");
                         ogs_assert(true == ogs_sbi_server_send_error(
                             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
-                            "Invalid value for /plmnList", NULL, NULL));
+                            "Invalid value for /plmnList", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                         return false;
                     }
 
@@ -381,7 +392,7 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
                             ogs_assert(true == ogs_sbi_server_send_error(
                                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                                 recvmsg,
-                                "Too many PLMN IDs", NULL, NULL));
+                                "Too many PLMN IDs", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                             return false;
                         }
 
@@ -406,7 +417,7 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
                                            OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                                            recvmsg,
                                            "Invalid PLMN item", NULL,
-                                           NULL));
+                                           OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                             return false;
                         }
 
@@ -437,7 +448,7 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
                         ogs_error("PLMN-ID in NFProfile update is not allowed");
                         ogs_assert(true == ogs_sbi_server_send_error(
                             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
-                            "PLMN-ID not allowed", NULL, NULL));
+                            "PLMN-ID not allowed", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                         return false;
                     }
 
@@ -501,7 +512,7 @@ bool nrf_nnrf_handle_nf_status_subscribe(
         ogs_assert(true ==
             ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                 recvmsg, "Invalid POST Format",
-                recvmsg->h.resource.component[1], NULL));
+                recvmsg->h.resource.component[1], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -509,7 +520,7 @@ bool nrf_nnrf_handle_nf_status_subscribe(
     if (!SubscriptionData) {
         ogs_assert(true ==
             ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                recvmsg, "No SubscriptionData", NULL, NULL));
+                recvmsg, "No SubscriptionData", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -519,7 +530,7 @@ bool nrf_nnrf_handle_nf_status_subscribe(
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                 recvmsg, "No SubscriptionData", "NFStatusNotificationURL",
-                NULL));
+                OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -532,7 +543,7 @@ bool nrf_nnrf_handle_nf_status_subscribe(
         ogs_assert(true ==
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-                recvmsg, "No subscription data available", NULL, NULL));
+                recvmsg, "No subscription data available", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -595,7 +606,7 @@ bool nrf_nnrf_handle_nf_status_subscribe(
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                     recvmsg, "SubscrCond must be either an NF type or a service name",
-                    NULL, NULL));
+                    NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             return false;
         }
 
@@ -614,7 +625,7 @@ bool nrf_nnrf_handle_nf_status_subscribe(
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                     recvmsg, "Requested SubscrCond is not supported yet",
-                    NULL, NULL));
+                    NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             return false;
         }
     } else {
@@ -624,7 +635,7 @@ bool nrf_nnrf_handle_nf_status_subscribe(
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                 recvmsg, "No SubscrCond found in NF Subscription message",
-                NULL, NULL));
+                NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -639,7 +650,7 @@ bool nrf_nnrf_handle_nf_status_subscribe(
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                 recvmsg, "Invalid URI", subscription_data->notification_uri,
-                NULL));
+                OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         ogs_sbi_subscription_data_remove(subscription_data);
         return false;
     }
@@ -654,7 +665,7 @@ bool nrf_nnrf_handle_nf_status_subscribe(
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
                     recvmsg, "No SBI client available",
-                    subscription_data->notification_uri, NULL));
+                    subscription_data->notification_uri, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             ogs_free(fqdn);
             ogs_freeaddrinfo(addr);
             ogs_freeaddrinfo(addr6);
@@ -750,7 +761,7 @@ bool nrf_nnrf_handle_nf_status_update(
         ogs_assert(true ==
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                recvmsg, "No SubscriptionId", NULL, NULL));
+                recvmsg, "No SubscriptionId", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -762,7 +773,7 @@ bool nrf_nnrf_handle_nf_status_update(
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_NOT_FOUND,
                 recvmsg, "Not found", recvmsg->h.resource.component[1],
-                NULL));
+                OGS_SBI_CAUSE_USER_NOT_FOUND));
         return false;
     }
     ogs_assert(subscription_data->id);
@@ -774,7 +785,7 @@ bool nrf_nnrf_handle_nf_status_update(
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                 recvmsg, "No PatchItemList", subscription_data->id,
-                NULL));
+                OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -785,7 +796,7 @@ bool nrf_nnrf_handle_nf_status_update(
             ogs_assert(true ==
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                    recvmsg, "No PatchItem", NULL, NULL));
+                    recvmsg, "No PatchItem", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             return false;
         }
 
@@ -812,7 +823,7 @@ bool nrf_nnrf_handle_nf_status_update(
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                 recvmsg, "No validityTime", subscription_data->id,
-                NULL));
+                OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -904,7 +915,7 @@ bool nrf_nnrf_handle_nf_status_unsubscribe(
         ogs_assert(true ==
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                recvmsg, "No SubscriptionId", NULL, NULL));
+                recvmsg, "No SubscriptionId", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -916,7 +927,7 @@ bool nrf_nnrf_handle_nf_status_unsubscribe(
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_NOT_FOUND,
                 recvmsg, "Not found", recvmsg->h.resource.component[1],
-                NULL));
+                OGS_SBI_CAUSE_USER_NOT_FOUND));
         return false;
     }
 
@@ -1020,7 +1031,7 @@ bool nrf_nnrf_handle_nf_profile_retrieval(
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_NOT_FOUND,
                 recvmsg, "Not found", recvmsg->h.resource.component[1],
-                NULL));
+                OGS_SBI_CAUSE_USER_NOT_FOUND));
         return false;
     }
 
@@ -1062,14 +1073,14 @@ bool nrf_nnrf_handle_nf_discover(
         ogs_error("No target-nf-type [%s]", recvmsg->h.uri);
         ogs_assert(true ==
             ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                recvmsg, "No target-nf-type", NULL, NULL));
+                recvmsg, "No target-nf-type", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
     if (!recvmsg->param.requester_nf_type) {
         ogs_error("No requester-nf-type [%s]", recvmsg->h.uri);
         ogs_assert(true ==
             ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                recvmsg, "No requester-nf-type", NULL, NULL));
+                recvmsg, "No requester-nf-type", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return false;
     }
 
@@ -1184,7 +1195,7 @@ bool nrf_nnrf_handle_nf_discover(
                         OGS_SBI_HTTP_STATUS_FORBIDDEN,
                         recvmsg,
                         "Requester not authorized for requested S-NSSAI",
-                        discovery_option->requester_nf_instance_id, NULL));
+                        discovery_option->requester_nf_instance_id, OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
                 return false;
             }
         }
@@ -1309,7 +1320,7 @@ bool nrf_nnrf_handle_nf_discover(
                 ogs_error("Can't add NRF instance due to insufficient space");
                 ogs_assert(true == ogs_sbi_server_send_error(
                         stream, OGS_SBI_HTTP_STATUS_PAYLOAD_TOO_LARGE,
-                        recvmsg, "Insufficient space", NULL, NULL));
+                        recvmsg, "Insufficient space", NULL, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
                 goto cleanup;
             }
             ogs_sbi_nf_instance_set_type(nf_instance, OpenAPI_nf_type_NRF);
@@ -1352,7 +1363,7 @@ bool nrf_nnrf_handle_nf_discover(
                     ogs_assert(true == ogs_sbi_server_send_error(
                             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                             recvmsg, "Invalid hnrf-uri",
-                            discovery_option->hnrf_uri, NULL));
+                            discovery_option->hnrf_uri, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                     goto cleanup;
                 } else {
             /*
@@ -1415,7 +1426,7 @@ bool nrf_nnrf_handle_nf_discover(
             ogs_error("nrf_assoc_add() failed");
             ogs_assert(true == ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-                    recvmsg, "nrf_assoc_add() failed", NULL, NULL));
+                    recvmsg, "nrf_assoc_add() failed", NULL, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
             goto cleanup;
         }
 
@@ -1428,7 +1439,7 @@ bool nrf_nnrf_handle_nf_discover(
             ogs_assert(true == ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
                     recvmsg, "ogs_nnrf_disc_build_discover() failed", NULL,
-                    NULL));
+                    OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
             nrf_assoc_remove(assoc);
             goto cleanup;
         }
@@ -1440,7 +1451,7 @@ bool nrf_nnrf_handle_nf_discover(
             ogs_assert(true == ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
                     recvmsg, "ogs_sbi_send_request_to_client() failed", NULL,
-                    NULL));
+                    OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
             ogs_sbi_request_free(request);
             nrf_assoc_remove(assoc);
             goto cleanup;
@@ -1564,7 +1575,7 @@ cleanup:
         ogs_assert(true ==
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, NULL,
-                "response_handler() failed", NULL, NULL));
+                "response_handler() failed", NULL, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
     else if (response)
         ogs_sbi_response_free(response);
 
@@ -1676,4 +1687,59 @@ static void handle_nf_discover_search_result(
                         OpenAPI_nf_type_ToString(nf_instance->nf_type));
         }
     }
+}
+
+bool nrf_nnrf_handle_oauth2_token(
+        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg)
+{
+    ogs_sbi_response_t *response = NULL;
+    char *token = NULL;
+    char *body = NULL;
+    OpenAPI_nf_type_e target_nf_type = OpenAPI_nf_type_AMF;
+    const char *nf_id = ogs_sbi_self()->nf_instance ?
+        ogs_sbi_self()->nf_instance->id : "lab-consumer";
+
+    ogs_assert(stream);
+    ogs_assert(recvmsg);
+
+    if (!ogs_sbi_self()->oauth2.enabled) {
+        ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND,
+                recvmsg, "OAuth2 disabled", NULL,
+                OGS_SBI_CAUSE_UNSUPPORTED_RESOURCE_URI);
+        return false;
+    }
+
+    if (recvmsg->http.content && strstr(recvmsg->http.content, "targetNfType=")) {
+        char *p = strstr(recvmsg->http.content, "targetNfType=");
+        if (p) {
+            p += strlen("targetNfType=");
+            target_nf_type = OpenAPI_nf_type_FromString(p);
+        }
+    }
+
+    token = ogs_sbi_oauth_issue_access_token(
+            nf_id, OpenAPI_nf_type_NRF, target_nf_type, "default");
+    if (!token) {
+        ogs_sbi_server_send_error(stream,
+                OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
+                recvmsg, "Token issue failed", NULL,
+                OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE);
+        return false;
+    }
+
+    body = ogs_msprintf("{\"access_token\":\"%s\",\"token_type\":\"Bearer\","
+            "\"expires_in\":%d}", token, ogs_sbi_self()->oauth2.token_ttl);
+    ogs_free(token);
+    ogs_assert(body);
+
+    response = ogs_sbi_response_new();
+    ogs_assert(response);
+    response->status = OGS_SBI_HTTP_STATUS_OK;
+    response->http.content_type = ogs_strdup("application/json");
+    response->http.content = body;
+    response->http.content_length = strlen(body);
+
+    ogs_sbi_server_send_response(stream, response);
+    ogs_sbi_response_free(response);
+    return true;
 }

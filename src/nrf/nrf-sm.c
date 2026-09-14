@@ -82,7 +82,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
             ogs_assert(true ==
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                    NULL, "cannot parse HTTP message", NULL, NULL));
+                    NULL, "cannot parse HTTP message", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             break;
         }
 
@@ -91,7 +91,19 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
             ogs_assert(true ==
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                    &message, "Not supported version", NULL, NULL));
+                    &message, "Not supported version", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+            ogs_sbi_message_free(&message);
+            break;
+        }
+
+        if (message.h.uri && strstr(message.h.uri, "/oauth2/token")) {
+            if (!strcmp(message.h.method, OGS_SBI_HTTP_METHOD_POST))
+                nrf_nnrf_handle_oauth2_token(stream, &message);
+            else
+                ogs_sbi_server_send_error(stream,
+                        OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED,
+                        &message, "Method not allowed", NULL,
+                        OGS_SBI_CAUSE_MANDATORY_IE_INCORRECT);
             ogs_sbi_message_free(&message);
             break;
         }
@@ -119,7 +131,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                             stream,
                             OGS_SBI_HTTP_STATUS_NOT_IMPLEMENTED,
                             &message, "OPTIONS method is not implemented yet",
-                            NULL, NULL));
+                            NULL, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
                     break;
 
                 DEFAULT
@@ -128,7 +140,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                         ogs_assert(true ==
                             ogs_sbi_server_send_error(stream,
                                 OGS_SBI_HTTP_STATUS_BAD_REQUEST,
-                                &message, "No NFInstanceId", NULL, NULL));
+                                &message, "No NFInstanceId", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
                         break;
                     }
 
@@ -149,7 +161,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                                         stream,
                                         OGS_SBI_HTTP_STATUS_PAYLOAD_TOO_LARGE,
                                         &message, "Insufficient space",
-                                        message.h.resource.component[1], NULL));
+                                        message.h.resource.component[1], OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
                                 break;
                             }
                             ogs_sbi_nf_instance_set_id(nf_instance,
@@ -169,7 +181,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                                 ogs_sbi_server_send_error(stream,
                                     OGS_SBI_HTTP_STATUS_NOT_FOUND,
                                     &message, "Not found",
-                                    message.h.resource.component[1], NULL));
+                                    message.h.resource.component[1], OGS_SBI_CAUSE_USER_NOT_FOUND));
                         END
                     } else {
                         if (NF_INSTANCE_ID_IS_SELF(nf_instance->id)) {
@@ -178,7 +190,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                                 ogs_sbi_server_send_error(stream,
                                     OGS_SBI_HTTP_STATUS_FORBIDDEN,
                                     &message, "SELF Not allowed",
-                                    nf_instance->id, NULL));
+                                    nf_instance->id, OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
                             break;
                         }
                     }
@@ -234,7 +246,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_FORBIDDEN, &message,
-                            "Invalid HTTP method", message.h.method, NULL));
+                            "Invalid HTTP method", message.h.method, OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
                 END
                 break;
 
@@ -245,7 +257,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
                         "Invalid resource name",
-                        message.h.resource.component[0], NULL));
+                        message.h.resource.component[0], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             END
             break;
 
@@ -266,7 +278,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_FORBIDDEN, &message,
                             "Invalid HTTP method", message.h.method,
-                            NULL));
+                            OGS_SBI_CAUSE_SERVING_NETWORK_NOT_AUTHORIZED));
                 END
 
                 break;
@@ -278,7 +290,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
                         "Invalid resource name",
-                        message.h.resource.component[0], NULL));
+                        message.h.resource.component[0], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             END
             break;
 
@@ -288,7 +300,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
                     "Invalid API name", message.h.resource.component[0],
-                    NULL));
+                    OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         }
 
         /* In lib/sbi/server.c, notify_completed() releases 'request' buffer. */

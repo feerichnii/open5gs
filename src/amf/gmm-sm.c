@@ -3220,6 +3220,12 @@ void gmm_state_initial_context_setup(ogs_fsm_t *s, amf_event_t *e)
                     if (rv != OGS_OK) {
                         ogs_error("[%s] amf_npcf_am_policy_control"
                                 "_handle_create() failed", amf_ue->supi);
+                        if (!amf_self()->pcf_mandatory) {
+                            ogs_warn("[%s] Continue registration without "
+                                    "AM policy (pcf.mandatory=false)",
+                                    amf_ue->supi);
+                            goto pcf_bypass_registration_accept;
+                        }
                         OGS_FSM_TRAN(&amf_ue->sm, &gmm_state_exception);
                         break;
                     }
@@ -3227,6 +3233,7 @@ void gmm_state_initial_context_setup(ogs_fsm_t *s, amf_event_t *e)
                     ogs_assert(amf_ue->nas.message_type ==
                             OGS_NAS_5GS_REGISTRATION_REQUEST);
                     CLEAR_AMF_UE_TIMER(amf_ue->t3550);
+pcf_bypass_registration_accept:
                     r = nas_5gs_send_registration_accept(amf_ue);
                     ogs_expect(r == OGS_OK);
                     ogs_assert(r != OGS_ERROR);
