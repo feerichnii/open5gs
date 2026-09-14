@@ -90,6 +90,56 @@ bool ogs_sbi_oauth_server_authorize(
         }
     }
 
+    /* Optional scope check: token scope must include a service name from URI */
+    {
+        cJSON *scope_item = cJSON_GetObjectItemCaseSensitive(root, "scope");
+        if (scope_item && cJSON_IsString(scope_item) &&
+                scope_item->valuestring && request->h.uri) {
+            const char *scope_str = scope_item->valuestring;
+            const char *uri = request->h.uri;
+            const char *svc = NULL;
+
+            if (strstr(uri, "/nudm-"))
+                svc = strstr(uri, "/nudm-");
+            else if (strstr(uri, "/namf-"))
+                svc = strstr(uri, "/namf-");
+            else if (strstr(uri, "/npcf-"))
+                svc = strstr(uri, "/npcf-");
+            else if (strstr(uri, "/nsmf-"))
+                svc = strstr(uri, "/nsmf-");
+            else if (strstr(uri, "/nnrf-"))
+                svc = strstr(uri, "/nnrf-");
+            else if (strstr(uri, "/nchf-"))
+                svc = strstr(uri, "/nchf-");
+            else if (strstr(uri, "/nausf-"))
+                svc = strstr(uri, "/nausf-");
+
+            if (svc) {
+                char needed[64];
+                const char *slash2;
+                size_t len;
+
+                svc++; /* skip leading '/' */
+                slash2 = strchr(svc, '/');
+                len = slash2 ? (size_t)(slash2 - svc) : strlen(svc);
+                if (len >= sizeof(needed))
+                    len = sizeof(needed) - 1;
+                memcpy(needed, svc, len);
+                needed[len] = '\0';
+
+                if (needed[0] && !strstr(scope_str, needed) &&
+                        strcmp(scope_str, "default") != 0) {
+                    cJSON_Delete(root);
+                    ogs_sbi_server_send_error(stream,
+                            OGS_SBI_HTTP_STATUS_FORBIDDEN,
+                            NULL, "Token scope mismatch", needed,
+                            OGS_SBI_CAUSE_AUTHENTICATION_REJECTED);
+                    return false;
+                }
+            }
+        }
+    }
+
     cJSON_Delete(root);
     return true;
 }

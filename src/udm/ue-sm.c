@@ -304,9 +304,9 @@ void udm_ue_state_operational(ogs_fsm_t *s, udm_event_t *e)
                         udm_ue->supi, message->h.method);
                 ogs_assert(true ==
                     ogs_sbi_server_send_error(stream,
-                        OGS_SBI_HTTP_STATUS_NOT_FOUND, message,
+                        OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, message,
                         "Invalid HTTP method", message->h.method,
-                        OGS_SBI_CAUSE_USER_NOT_FOUND));
+                        OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
             END
             break;
 

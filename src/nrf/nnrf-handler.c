@@ -344,6 +344,9 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
         /* Iterate through the PatchItemList */
         OpenAPI_list_for_each(PatchItemList, node) {
             OpenAPI_patch_item_t *patch_item = node->data;
+            const char *json_path = NULL;
+            bool applied = false;
+
             if (!patch_item) {
                 ogs_error("No PatchItem");
                 ogs_assert(true == ogs_sbi_server_send_error(
@@ -352,16 +355,88 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
                 return false;
             }
 
-            if (patch_item->op != OpenAPI_patch_operation_replace) {
-                ogs_error("Unknown PatchItem.Operation [%s]",
+            if (patch_item->op != OpenAPI_patch_operation_replace &&
+                patch_item->op != OpenAPI_patch_operation_add &&
+                patch_item->op != OpenAPI_patch_operation__remove) {
+                ogs_error("Unsupported PatchItem.Operation [%s]",
                         OpenAPI_patch_operation_ToString(patch_item->op));
+                ogs_assert(true == ogs_sbi_server_send_error(
+                    stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
+                    "Unsupported Patch op",
+                    OpenAPI_patch_operation_ToString(patch_item->op),
+                    OGS_SBI_CAUSE_OPTIONAL_IE_INCORRECT));
+                return false;
+            }
+
+            if (!patch_item->path) {
+                ogs_assert(true == ogs_sbi_server_send_error(
+                    stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
+                    "No PatchItem.path", NULL,
+                    OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                return false;
+            }
+
+            json_path = patch_item->path;
+            if (json_path[0] == '/')
+                json_path++;
+
+            if (patch_item->op == OpenAPI_patch_operation__remove) {
+                if (nf_instance->raw_profile &&
+                    cJSON_GetObjectItemCaseSensitive(
+                            nf_instance->raw_profile, json_path)) {
+                    cJSON_DeleteItemFromObjectCaseSensitive(
+                            nf_instance->raw_profile, json_path);
+                    applied = true;
+                }
+                if (!applied) {
+                    ogs_assert(true == ogs_sbi_server_send_error(
+                        stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
+                        "Patch remove path not found", patch_item->path,
+                        OGS_SBI_CAUSE_OPTIONAL_IE_INCORRECT));
+                    return false;
+                }
                 continue;
+            }
+
+            if (!patch_item->value || !patch_item->value->json) {
+                ogs_assert(true == ogs_sbi_server_send_error(
+                    stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
+                    "No PatchItem.value", patch_item->path,
+                    OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                return false;
             }
 
             SWITCH(patch_item->path)
             CASE(OGS_SBI_PATCH_PATH_NF_STATUS)
+                if (cJSON_IsString(patch_item->value->json) &&
+                        patch_item->value->json->valuestring) {
+                    OpenAPI_nf_status_e st = OpenAPI_nf_status_FromString(
+                            patch_item->value->json->valuestring);
+                    if (st)
+                        ogs_sbi_nf_instance_set_status(nf_instance, st);
+                    applied = true;
+                }
                 break;
             CASE(OGS_SBI_PATCH_PATH_LOAD)
+                if (cJSON_IsNumber(patch_item->value->json)) {
+                    nf_instance->load =
+                        (int)patch_item->value->json->valuedouble;
+                    applied = true;
+                }
+                break;
+            CASE("/priority")
+                if (cJSON_IsNumber(patch_item->value->json)) {
+                    nf_instance->priority =
+                        (int)patch_item->value->json->valuedouble;
+                    applied = true;
+                }
+                break;
+            CASE("/capacity")
+                if (cJSON_IsNumber(patch_item->value->json)) {
+                    nf_instance->capacity =
+                        (int)patch_item->value->json->valuedouble;
+                    applied = true;
+                }
                 break;
             CASE(OGS_SBI_PATCH_PATH_PLMN_LIST)
                 /* Ensure the value is not null and is a valid JSON array */
@@ -462,32 +537,49 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
                     memcpy(nf_instance->plmn_id, new_plmn_id,
                             sizeof(new_plmn_id));
                     nf_instance->num_of_plmn_id = new_num_of_plmn_id;
+                    applied = true;
                 }
                 break;
             DEFAULT
-                ogs_error("Unknown PatchItem.Path [%s]", patch_item->path);
+                /* Vendor / optional top-level attributes (e.g. /locality) */
+                applied = true;
             END
 
-            /* Keep raw NFProfile JSON in sync with successful replace ops */
-            if (nf_instance->raw_profile && patch_item->path &&
-                patch_item->value && patch_item->value->json) {
-                cJSON *target = NULL;
-                char *json_path = patch_item->path;
+            if (!applied) {
+                ogs_assert(true == ogs_sbi_server_send_error(
+                    stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
+                    "Invalid PatchItem.value", patch_item->path,
+                    OGS_SBI_CAUSE_OPTIONAL_IE_INCORRECT));
+                return false;
+            }
 
-                if (json_path[0] == '/')
-                    json_path++;
-                target = cJSON_GetObjectItemCaseSensitive(
+            /* Keep raw NFProfile JSON in sync with replace/add */
+            if (nf_instance->raw_profile) {
+                cJSON *target = cJSON_GetObjectItemCaseSensitive(
                         nf_instance->raw_profile, json_path);
+                cJSON *dup = cJSON_Duplicate(patch_item->value->json, 1);
+                if (!dup) {
+                    ogs_assert(true == ogs_sbi_server_send_error(
+                        stream,
+                        OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR, recvmsg,
+                        "Patch raw profile failed", patch_item->path,
+                        OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
+                    return false;
+                }
                 if (target) {
-                    cJSON *dup = cJSON_Duplicate(patch_item->value->json, 1);
-                    if (dup)
-                        cJSON_ReplaceItemInObjectCaseSensitive(
-                                nf_instance->raw_profile, json_path, dup);
+                    cJSON_ReplaceItemInObjectCaseSensitive(
+                            nf_instance->raw_profile, json_path, dup);
+                } else if (patch_item->op == OpenAPI_patch_operation_add ||
+                           patch_item->op == OpenAPI_patch_operation_replace) {
+                    cJSON_AddItemToObject(
+                            nf_instance->raw_profile, json_path, dup);
                 } else {
-                    cJSON *dup = cJSON_Duplicate(patch_item->value->json, 1);
-                    if (dup)
-                        cJSON_AddItemToObject(
-                                nf_instance->raw_profile, json_path, dup);
+                    cJSON_Delete(dup);
+                    ogs_assert(true == ogs_sbi_server_send_error(
+                        stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
+                        "Patch path not found", patch_item->path,
+                        OGS_SBI_CAUSE_OPTIONAL_IE_INCORRECT));
+                    return false;
                 }
             }
         }
@@ -798,7 +890,7 @@ bool nrf_nnrf_handle_nf_status_update(
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_NOT_FOUND,
                 recvmsg, "Not found", recvmsg->h.resource.component[1],
-                OGS_SBI_CAUSE_USER_NOT_FOUND));
+                OGS_SBI_CAUSE_SUBSCRIPTION_NOT_FOUND));
         return false;
     }
     ogs_assert(subscription_data->id);
@@ -952,7 +1044,7 @@ bool nrf_nnrf_handle_nf_status_unsubscribe(
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_NOT_FOUND,
                 recvmsg, "Not found", recvmsg->h.resource.component[1],
-                OGS_SBI_CAUSE_USER_NOT_FOUND));
+                OGS_SBI_CAUSE_SUBSCRIPTION_NOT_FOUND));
         return false;
     }
 
@@ -1056,7 +1148,7 @@ bool nrf_nnrf_handle_nf_profile_retrieval(
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_NOT_FOUND,
                 recvmsg, "Not found", recvmsg->h.resource.component[1],
-                OGS_SBI_CAUSE_USER_NOT_FOUND));
+                OGS_SBI_CAUSE_NF_INSTANCE_NOT_FOUND));
         return false;
     }
 
@@ -1733,7 +1825,7 @@ bool nrf_nnrf_handle_oauth2_token(
     const char *content = NULL;
 
     ogs_assert(stream);
-    ogs_assert(recvmsg);
+    /* recvmsg may be NULL when handled before ogs_sbi_parse_request() */
 
     if (!ogs_sbi_self()->oauth2.enabled) {
         ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_NOT_FOUND,
@@ -1742,7 +1834,13 @@ bool nrf_nnrf_handle_oauth2_token(
         return false;
     }
 
-    content = request && request->http.content ? request->http.content : NULL;
+    if (!request || !request->http.content) {
+        ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
+                recvmsg, "Empty AccessTokenReq body", NULL,
+                OGS_SBI_CAUSE_MANDATORY_IE_MISSING);
+        return false;
+    }
+    content = request->http.content;
     ogs_sbi_oauth_parse_token_form(content,
             &grant_type, &nf_instance_id, &nf_type_str,
             &target_nf_type_str, &scope, &target_nf_instance_id);
@@ -1802,8 +1900,8 @@ bool nrf_nnrf_handle_oauth2_token(
     response = ogs_sbi_response_new();
     ogs_assert(response);
     response->status = OGS_SBI_HTTP_STATUS_OK;
-    response->http.content_type =
-        ogs_strdup(OGS_SBI_CONTENT_JSON_TYPE);
+    ogs_sbi_header_set(response->http.headers,
+            OGS_SBI_CONTENT_TYPE, OGS_SBI_CONTENT_JSON_TYPE);
     response->http.content = body;
     response->http.content_length = strlen(body);
 

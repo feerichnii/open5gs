@@ -5,8 +5,13 @@
   "heartBeatTimer": 10,
   "plmnList": [{"mcc": "001", "mnc": "01"}],
   "fqdn": "pcf.vendor.example",
+  "locality": "area1",
+  "priority": 1,
+  "capacity": 100,
+  "load": 10,
+  "nfSetIdList": ["set1.pcf.5gc.mnc001.mcc001.3gppnetwork.org"],
   "pcfInfo": {
-    "supiRanges": [{"start": "imsi-001010000000001", "end": "imsi-001010000000099"}],
+    "supiRanges": [{"start": "001010000000001", "end": "001010000000099"}],
     "dnnList": ["internet"]
   },
   "nfServices": [{
@@ -15,6 +20,10 @@
     "versions": [{"apiVersionInUri": "v1", "apiFullVersion": "1.0.0"}],
     "scheme": "http",
     "nfServiceStatus": "REGISTERED",
+    "apiPrefix": "/pcf",
+    "supportedFeatures": "1",
+    "oauth2Required": true,
+    "nfServiceSetIdList": ["set1.npcf-am-policy-control.5gc.mnc001.mcc001"],
     "ipEndPoints": [{"ipv4Address": "10.9.0.5", "port": 7777}]
   }]
 }

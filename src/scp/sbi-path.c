@@ -1255,18 +1255,27 @@ static bool send_request(
                 OGS_SBI_CUSTOM_TARGET_APIROOT, assoc->target_apiroot);
 
     /*
-     * Lab Model D (E5-05): when oauth2.enabled, mint Bearer with shared
-     * signing key (same as NRF) so producers can validate. Full async
-     * Nnrf_AccessToken from SCP is a follow-up.
+     * Lab Model D (E5-05): mint Bearer with shared signing key.
+     * Prefer Discovery-requester-nf-instance-id as JWT sub (consumer);
+     * fall back to SCP instance id.
      */
     if (ogs_sbi_self()->oauth2.enabled &&
             !do_not_remove_custom_header &&
             assoc->nf_service_producer) {
-        const char *consumer_id = ogs_sbi_self()->nf_instance ?
-            ogs_sbi_self()->nf_instance->id : "scp";
-        char *bearer = ogs_sbi_oauth_issue_access_token(
+        const char *consumer_id = NULL;
+        char *bearer;
+
+        if (assoc->discovery_option &&
+                assoc->discovery_option->requester_nf_instance_id)
+            consumer_id = assoc->discovery_option->requester_nf_instance_id;
+        if (!consumer_id)
+            consumer_id = ogs_sbi_self()->nf_instance ?
+                ogs_sbi_self()->nf_instance->id : "scp";
+
+        bearer = ogs_sbi_oauth_issue_access_token(
                 consumer_id,
-                OpenAPI_nf_type_SCP,
+                assoc->requester_nf_type ?
+                    assoc->requester_nf_type : OpenAPI_nf_type_SCP,
                 assoc->nf_service_producer->nf_type,
                 assoc->service_name ?
                     OpenAPI_service_name_ToString(assoc->service_name) :

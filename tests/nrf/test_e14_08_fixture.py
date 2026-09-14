@@ -11,9 +11,11 @@ profile = json.loads(fixture.read_text())
 assert profile["nfType"] == "PCF"
 assert "pcfInfo" in profile
 assert "supiRanges" in profile["pcfInfo"]
+assert "nfSetIdList" in profile
+assert "locality" in profile
 start = profile["pcfInfo"]["supiRanges"][0]["start"]
-# Vendor ranges must be digit-only or imsi-prefixed — our matcher strips imsi-
-assert start.startswith("imsi-") or start.isdigit() or start.replace("-", "").isalnum()
+# TS 29.571 SupiRange.start/end are digit strings (optional imsi- tolerated)
+assert start.startswith("imsi-") or start.isdigit()
 print("E14-08 fixture OK:", fixture.name)
 print("NOTE: run raw-profile-discover.sh against a live NRF for end-to-end")
 sys.exit(0)

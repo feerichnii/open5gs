@@ -75,6 +75,20 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
             break;
         }
 
+        /* AccessToken is outside versioned Nnrf APIs; handle before JSON parse */
+        if (request->h.uri && strstr(request->h.uri, "/oauth2/token")) {
+            if (request->h.method &&
+                    !strcmp(request->h.method, OGS_SBI_HTTP_METHOD_POST)) {
+                nrf_nnrf_handle_oauth2_token(stream, NULL, request);
+            } else {
+                ogs_sbi_server_send_error(stream,
+                        OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED,
+                        NULL, "Method not allowed", request->h.method,
+                        OGS_SBI_CAUSE_INVALID_MSG_FORMAT);
+            }
+            break;
+        }
+
         rv = ogs_sbi_parse_request(&message, request);
         if (rv != OGS_OK) {
             /* 'message' buffer is released in ogs_sbi_parse_request() */
@@ -83,19 +97,6 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                     NULL, "cannot parse HTTP message", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
-            break;
-        }
-
-        /* Nnrf_AccessToken is outside /nnrf-*/v1 versioned APIs */
-        if (request->h.uri && strstr(request->h.uri, "/oauth2/token")) {
-            if (!strcmp(message.h.method, OGS_SBI_HTTP_METHOD_POST))
-                nrf_nnrf_handle_oauth2_token(stream, &message, request);
-            else
-                ogs_sbi_server_send_error(stream,
-                        OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED,
-                        &message, "Method not allowed", NULL,
-                        OGS_SBI_CAUSE_MANDATORY_IE_INCORRECT);
-            ogs_sbi_message_free(&message);
             break;
         }
 
@@ -182,7 +183,7 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
                                 ogs_sbi_server_send_error(stream,
                                     OGS_SBI_HTTP_STATUS_NOT_FOUND,
                                     &message, "Not found",
-                                    message.h.resource.component[1], OGS_SBI_CAUSE_USER_NOT_FOUND));
+                                    message.h.resource.component[1], OGS_SBI_CAUSE_NF_INSTANCE_NOT_FOUND));
                         END
                     } else {
                         if (NF_INSTANCE_ID_IS_SELF(nf_instance->id)) {

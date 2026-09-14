@@ -595,3 +595,53 @@ E7-05, E14-01..08, E15-01..11, E16-01..07; изменены статусы в §
 5. OAuth2: разобрать `application/x-www-form-urlencoded` (`grant_type`, `nfInstanceId`, `nfType`, `scope`, `targetNfType`, `targetNfInstanceId`), `sub` = requester, `scope` в ответе; проверка `exp`/`aud`/`scope` на продюсере; **клиентская часть** — SCP запрашивает токен по `Discovery-target-nf-type` и подставляет `Authorization`, кэш по (consumer, targetNfType, scope). До этого `oauth2.enabled` включать только на NRF.
 6. Добавить в CI `meson setup && ninja` — минимум для четырёх NF.
 7. Тесты E14-08 (реальный вендорский JSON профиля → discovery без потерь) и E16-07.
+
+### 10.4 Ревью коммита `a8eb926` (fix build and review findings) — 2026-09-14
+
+Проверено: сборка четырёх NF в чистом Ubuntu 24.04 и **прогон NRF** (без MongoDB) с curl/HTTP2: регистрация вендор-подобного PCF-профиля, discovery с фильтрами, PATCH, OAuth2.
+
+**Сборка:** SCP/AMF/UDM собираются. NRF — нет, две новые ошибки:
+- `src/nrf/nrf-sm.c:89` — комментарий `/* … /nnrf-*/v1 … */` закрывается на `*/` внутри пути → синтаксическая ошибка;
+- `src/nrf/nnrf-handler.c:1805` — `response->http.content_type` не существует у `ogs_sbi_response_t` (нужно `ogs_sbi_header_set(response->http.headers, OGS_SBI_CONTENT_TYPE, …)`).
+
+CI-job `build-lab-nfs` добавлен, но, судя по ошибкам, до пуша не запускался.
+
+**Результаты прогона NRF** (после двух локальных правок выше):
+
+| Проверка | Результат |
+|---|---|
+| Discovery отдаёт `pcfInfo.supiRanges`, `nfSetIdList`, `locality`, `nfServices[].apiPrefix/supportedFeatures/oauth2Required/nfServiceSetIdList` | ✅ E14-01 работает |
+| `supi=` в диапазоне → 1 / вне диапазона → 0; NF без `supiRanges` не отфильтровывается (29.510) | ✅ E14-03 |
+| `nf-set-id` совпадение / несовпадение | ✅ |
+| `routing-indicator`, `preferred-locality` не отбрасывают NF без соответствующих полей | ✅ |
+| `PATCH replace /load, /priority` → 204, но discovery и GET отдают старые значения | ❌ PATCH не применяется ни к структуре, ни к raw JSON |
+| `PATCH add /locality` → 204, значение не изменилось | ❌ должен либо применяться, либо 400/422 |
+| `POST /oauth2/token` (form-urlencoded) → `400 cannot parse HTTP message` | ❌ `ogs_sbi_parse_request()` пытается разобрать тело как JSON **до** проверки `/oauth2/token`; endpoint недостижим |
+| Bearer: без токена 401, подпись 401, `exp` 401, чужой `aud` 403 | ✅ E5-03 (`scope` по-прежнему не проверяется) |
+| `cause` в 404 NRF | ⚠️ `USER_NOT_FOUND` для nf-instance и subscription; по 29.510 §6.1.6.3 — `NF_INSTANCE_NOT_FOUND` / `SUBSCRIPTION_NOT_FOUND` |
+| `cause` в UDM | ⚠️ 90 из 114 всё ещё `MANDATORY_IE_MISSING`; изменено 7 мест |
+
+**SCP OAuth2 (E5-05):** реализовано как «SCP сам чеканит токен общим HS256-ключом» — с `sub` = SCP, `iss` = `nrf.5gc.lab`. С вендорскими продюсерами сработает только если они принимают HS256 с тем же shared secret и не проверяют `sub` против requester. Нормативно (33.501 §13.4.1.3) токен выдаёт NRF; текущее решение — временное. Консьюмерская часть в AMF/UDM (direct mode) по-прежнему отсутствует.
+
+**Тесты:** `tests/nrf/test_e14_08_fixture.py` проверяет только форму fixture-файла (сам файл в коммите отсутствует — `fixtures/vendor-pcf-profile.json` не добавлен); `tests/interop/udm_udr_vendor.sh` — echo чек-листа. Ни один не проверяет поведение.
+
+**Что исправить:**
+1. Две ошибки компиляции выше; убедиться, что CI `build-lab-nfs` зелёный до пуша.
+2. `nrf-sm.c`: проверку `/oauth2/token` перенести **до** `ogs_sbi_parse_request()` (или научить парсер `application/x-www-form-urlencoded`).
+3. PATCH: применять JSON Patch к `raw_profile` для всех `replace`/`add`/`remove` и обновлять `load/priority/capacity` в `nf_instance`; неподдерживаемое → 400.
+4. `cause`: `NF_INSTANCE_NOT_FOUND`, `SUBSCRIPTION_NOT_FOUND` в NRF; в UDM пройти 90 мест по таблице 29.503 §6.1.7.3.
+5. Проверка `scope` на продюсере; в SCP — реальный `Nnrf_AccessToken` с `sub` = requester из `3gpp-Sbi-Discovery-requester-nf-instance-id`.
+6. Заменить тесты-заглушки на реальный прогон: скрипт из этого ревью (PUT профиля → discovery с фильтрами → PATCH → token) можно положить в `tests/nrf/` как есть.
+
+### 10.5 Исправления по §10.4 (тот же день)
+
+| Пункт | Статус |
+|---|---|
+| Компиляция: комментарий `/nnrf-*/v1`, `Content-Type` через `ogs_sbi_header_set` | ✅ |
+| `/oauth2/token` **до** `ogs_sbi_parse_request()` | ✅ |
+| PATCH `replace`/`add`/`remove` → struct (`load`/`priority`/`capacity`/`nfStatus`) + `raw_profile`; иначе 400 | ✅ |
+| NRF 404: `NF_INSTANCE_NOT_FOUND` / `SUBSCRIPTION_NOT_FOUND` | ✅ |
+| Producer `scope` check (service name from URI ⊆ token scope) | ✅ |
+| SCP JWT `sub` = `3gpp-Sbi-Discovery-requester-nf-instance-id` | ✅ (mint всё ещё локальный HS256; полный Nnrf_AccessToken — follow-up) |
+| `tests/nrf/raw-profile-discover.sh` + fixture с digit `supiRanges` / `nfSetIdList` | ✅ |
+| UDM: массовая замена 90× `MANDATORY_IE_MISSING` на 400 | отложено (пары status/cause уже согласованы; wrong-method → 405) |
