@@ -30,5 +30,8 @@ bool ogs_sbi_raw_profile_match_routing_indicator(
 bool ogs_sbi_raw_profile_match_nf_set_id(cJSON *profile, const char *nf_set_id);
 bool ogs_sbi_raw_profile_match_preferred_locality(
         cJSON *profile, const char *locality);
+/* Higher score preferred; used for SearchResult ordering */
+int ogs_sbi_raw_profile_locality_score(
+        cJSON *profile, const char *preferred_locality);
 
 #endif /* OGS_NNRF_PROFILE_RAW_H */

@@ -28,9 +28,11 @@ extern "C" {
 #endif
 
 bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
-        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg);
+        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg,
+        ogs_sbi_request_t *request);
 bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
-        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg);
+        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg,
+        ogs_sbi_request_t *request);
 
 bool nrf_nnrf_handle_nf_status_subscribe(
         ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg);
@@ -47,7 +49,8 @@ bool nrf_nnrf_handle_nf_profile_retrieval(
 bool nrf_nnrf_handle_nf_discover(
         ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg);
 bool nrf_nnrf_handle_oauth2_token(
-        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg);
+        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg,
+        ogs_sbi_request_t *request);
 
 #ifdef __cplusplus
 }

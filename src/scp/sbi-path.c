@@ -168,7 +168,7 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
         if (via_hops > 8) {
             ogs_error("SCP loop detected (Via hops=%d)", via_hops);
             ogs_sbi_server_send_error(stream,
-                    OGS_SBI_HTTP_STATUS_BAD_GATEWAY, NULL,
+                    OGS_SBI_HTTP_STATUS_GATEWAY_TIMEOUT, NULL,
                     "SCP routing loop detected", request->h.uri,
                     OGS_SBI_CAUSE_SCP_INTERNAL_ERROR);
             return OGS_OK;
@@ -1253,6 +1253,32 @@ static bool send_request(
     if (assoc->target_apiroot)
         ogs_sbi_header_set(scp_request.http.headers,
                 OGS_SBI_CUSTOM_TARGET_APIROOT, assoc->target_apiroot);
+
+    /*
+     * Lab Model D (E5-05): when oauth2.enabled, mint Bearer with shared
+     * signing key (same as NRF) so producers can validate. Full async
+     * Nnrf_AccessToken from SCP is a follow-up.
+     */
+    if (ogs_sbi_self()->oauth2.enabled &&
+            !do_not_remove_custom_header &&
+            assoc->nf_service_producer) {
+        const char *consumer_id = ogs_sbi_self()->nf_instance ?
+            ogs_sbi_self()->nf_instance->id : "scp";
+        char *bearer = ogs_sbi_oauth_issue_access_token(
+                consumer_id,
+                OpenAPI_nf_type_SCP,
+                assoc->nf_service_producer->nf_type,
+                assoc->service_name ?
+                    OpenAPI_service_name_ToString(assoc->service_name) :
+                    "default");
+        if (bearer) {
+            char *hdr = ogs_msprintf("Bearer %s", bearer);
+            ogs_sbi_header_set(scp_request.http.headers,
+                    "Authorization", hdr);
+            ogs_free(hdr);
+            ogs_free(bearer);
+        }
+    }
 
     /* Client ApiRoot */
     uri_apiroot = ogs_sbi_client_apiroot(client);

@@ -782,7 +782,7 @@ bool udm_nudm_sdm_handle_subscription_delete(
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_NOT_FOUND,
                 recvmsg, "Subscription Not found", recvmsg->h.method,
-                OGS_SBI_CAUSE_USER_NOT_FOUND));
+                OGS_SBI_CAUSE_SUBSCRIPTION_NOT_FOUND));
         return false;
     }
 

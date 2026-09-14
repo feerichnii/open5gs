@@ -7,6 +7,8 @@
 #include "ogs-sbi.h"
 #include "nnrf-profile-raw.h"
 
+#include <regex.h>
+
 void ogs_sbi_nf_instance_clear_raw_profile(ogs_sbi_nf_instance_t *nf_instance)
 {
     ogs_assert(nf_instance);
@@ -85,30 +87,75 @@ OpenAPI_nf_profile_t *ogs_nnrf_nfm_build_nf_profile_from_instance(
             nf_instance, service_name, discovery_option, service_map);
 }
 
+/* TS 29.571 SupiRange.start/end are digit strings without "imsi-" prefix */
+static const char *supi_digits(const char *supi)
+{
+    if (!supi)
+        return NULL;
+    if (!ogs_strncasecmp(supi, "imsi-", 5))
+        return supi + 5;
+    return supi;
+}
+
+static bool digistr_in_range(const char *digits,
+        const char *start, const char *end)
+{
+    size_t dlen, slen, elen;
+
+    ogs_assert(digits);
+    if (!start)
+        return false;
+
+    dlen = strlen(digits);
+    slen = strlen(start);
+
+    if (!end || !end[0])
+        return strcmp(digits, start) == 0;
+
+    elen = strlen(end);
+    if (dlen < slen || dlen > elen)
+        return false;
+    if (dlen == slen && strcmp(digits, start) < 0)
+        return false;
+    if (dlen == elen && strcmp(digits, end) > 0)
+        return false;
+    return true;
+}
+
 static bool supi_in_range_item(cJSON *range, const char *supi)
 {
     cJSON *start = NULL, *end = NULL, *pattern = NULL;
+    const char *digits = NULL;
+    regex_t re;
+    int rc;
 
     ogs_assert(supi);
 
     if (!range || !cJSON_IsObject(range))
         return false;
 
+    digits = supi_digits(supi);
+    ogs_assert(digits);
+
     pattern = cJSON_GetObjectItemCaseSensitive(range, "pattern");
     if (pattern && cJSON_IsString(pattern) && pattern->valuestring) {
-        if (strstr(supi, pattern->valuestring))
-            return true;
+        if (regcomp(&re, pattern->valuestring, REG_EXTENDED | REG_NOSUB) == 0) {
+            rc = regexec(&re, digits, 0, NULL, 0);
+            if (rc != 0)
+                rc = regexec(&re, supi, 0, NULL, 0);
+            regfree(&re);
+            if (rc == 0)
+                return true;
+        }
     }
 
     start = cJSON_GetObjectItemCaseSensitive(range, "start");
     end = cJSON_GetObjectItemCaseSensitive(range, "end");
-    if (start && cJSON_IsString(start) && start->valuestring &&
-        end && cJSON_IsString(end) && end->valuestring) {
-        if (strcmp(supi, start->valuestring) >= 0 &&
-            strcmp(supi, end->valuestring) <= 0)
-            return true;
-    } else if (start && cJSON_IsString(start) && start->valuestring) {
-        if (strcmp(supi, start->valuestring) == 0)
+    if (start && cJSON_IsString(start) && start->valuestring) {
+        const char *s = start->valuestring;
+        const char *e = (end && cJSON_IsString(end) && end->valuestring) ?
+            end->valuestring : NULL;
+        if (digistr_in_range(digits, s, e))
             return true;
     }
 
@@ -124,8 +171,11 @@ static bool supi_in_info_ranges(cJSON *info, const char *supi)
         return false;
 
     ranges = cJSON_GetObjectItemCaseSensitive(info, "supiRanges");
-    if (!ranges || !cJSON_IsArray(ranges))
-        return false;
+    if (!ranges || !cJSON_IsArray(ranges)) {
+        ranges = cJSON_GetObjectItemCaseSensitive(info, "supiRangeList");
+        if (!ranges || !cJSON_IsArray(ranges))
+            return false;
+    }
 
     cJSON_ArrayForEach(item, ranges) {
         if (supi_in_range_item(item, supi))
@@ -135,22 +185,35 @@ static bool supi_in_info_ranges(cJSON *info, const char *supi)
     return false;
 }
 
-static bool supi_in_info_list(cJSON *profile, const char *info_key, const char *supi)
+static bool info_has_supi_ranges(cJSON *info)
 {
-    cJSON *info = NULL, *list = NULL, *item = NULL;
+    cJSON *ranges;
 
-    info = cJSON_GetObjectItemCaseSensitive(profile, info_key);
-    if (info && cJSON_IsObject(info))
-        return supi_in_info_ranges(info, supi);
+    if (!info || !cJSON_IsObject(info))
+        return false;
+    ranges = cJSON_GetObjectItemCaseSensitive(info, "supiRanges");
+    if (ranges && cJSON_IsArray(ranges) && cJSON_GetArraySize(ranges) > 0)
+        return true;
+    ranges = cJSON_GetObjectItemCaseSensitive(info, "supiRangeList");
+    if (ranges && cJSON_IsArray(ranges) && cJSON_GetArraySize(ranges) > 0)
+        return true;
+    return false;
+}
 
-    list = cJSON_GetObjectItemCaseSensitive(profile, info_key);
-    if (list && cJSON_IsArray(list)) {
-        cJSON_ArrayForEach(item, list) {
-            if (supi_in_info_ranges(item, supi))
-                return true;
-        }
+static bool profile_has_any_supi_ranges(cJSON *profile)
+{
+    static const char *info_keys[] = {
+        "pcfInfo", "udmInfo", "udrInfo", "ausfInfo", "chfInfo",
+        "bsfInfo", "nssfInfo", "smfInfo", NULL
+    };
+    int i;
+    cJSON *info;
+
+    for (i = 0; info_keys[i]; i++) {
+        info = cJSON_GetObjectItemCaseSensitive(profile, info_keys[i]);
+        if (info_has_supi_ranges(info))
+            return true;
     }
-
     return false;
 }
 
@@ -158,32 +221,21 @@ bool ogs_sbi_raw_profile_match_supi(cJSON *profile, const char *supi)
 {
     static const char *info_keys[] = {
         "pcfInfo", "udmInfo", "udrInfo", "ausfInfo", "chfInfo",
-        "bsfInfo", "nssfInfo", "smfInfo", "amfInfo", NULL
+        "bsfInfo", "nssfInfo", "smfInfo", NULL
     };
     int i;
 
     ogs_assert(profile);
     ogs_assert(supi);
 
+    /* No ranges advertised → do not filter out */
+    if (!profile_has_any_supi_ranges(profile))
+        return true;
+
     for (i = 0; info_keys[i]; i++) {
-        if (supi_in_info_list(profile, info_keys[i], supi))
+        cJSON *info = cJSON_GetObjectItemCaseSensitive(profile, info_keys[i]);
+        if (supi_in_info_ranges(info, supi))
             return true;
-    }
-
-    /* chfInfo uses supiRangeList in some profiles */
-    {
-        cJSON *chf = cJSON_GetObjectItemCaseSensitive(profile, "chfInfo");
-        cJSON *ranges = NULL, *item = NULL;
-
-        if (chf && cJSON_IsObject(chf)) {
-            ranges = cJSON_GetObjectItemCaseSensitive(chf, "supiRangeList");
-            if (ranges && cJSON_IsArray(ranges)) {
-                cJSON_ArrayForEach(item, ranges) {
-                    if (supi_in_range_item(item, supi))
-                        return true;
-                }
-            }
-        }
     }
 
     return false;
@@ -226,6 +278,11 @@ bool ogs_sbi_raw_profile_match_routing_indicator(
     if (routing_in_info(ausf, routing_indicator))
         return true;
 
+    /* No routingIndicators advertised → accept */
+    if ((!udm || !cJSON_GetObjectItemCaseSensitive(udm, "routingIndicators")) &&
+        (!ausf || !cJSON_GetObjectItemCaseSensitive(ausf, "routingIndicators")))
+        return true;
+
     return false;
 }
 
@@ -239,7 +296,7 @@ bool ogs_sbi_raw_profile_match_nf_set_id(cJSON *profile, const char *nf_set_id)
 
     list = cJSON_GetObjectItemCaseSensitive(profile, "nfSetIdList");
     if (!list || !cJSON_IsArray(list))
-        return false;
+        return true; /* no set advertised */
 
     cJSON_ArrayForEach(item, list) {
         if (cJSON_IsString(item) && item->valuestring &&
@@ -253,14 +310,23 @@ bool ogs_sbi_raw_profile_match_nf_set_id(cJSON *profile, const char *nf_set_id)
 bool ogs_sbi_raw_profile_match_preferred_locality(
         cJSON *profile, const char *locality)
 {
-    cJSON *item = NULL;
+    /* preferred-locality is a preference (sort), not a hard filter */
+    (void)profile;
+    (void)locality;
+    return true;
+}
 
-    ogs_assert(profile);
-    ogs_assert(locality);
+int ogs_sbi_raw_profile_locality_score(
+        cJSON *profile, const char *preferred_locality)
+{
+    cJSON *item;
+
+    if (!preferred_locality || !profile)
+        return 0;
 
     item = cJSON_GetObjectItemCaseSensitive(profile, "locality");
-    if (!item || !cJSON_IsString(item) || !item->valuestring)
-        return false;
-
-    return strcmp(item->valuestring, locality) == 0;
+    if (item && cJSON_IsString(item) && item->valuestring &&
+            strcmp(item->valuestring, preferred_locality) == 0)
+        return 1;
+    return 0;
 }

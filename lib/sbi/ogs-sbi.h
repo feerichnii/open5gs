@@ -123,6 +123,8 @@
 #include "sbi/nf-sm.h"
 
 #include "sbi/nnrf-build.h"
+#include "sbi/nnrf-profile-raw.h"
+#include "sbi/ogs-sbi-cause.h"
 #include "sbi/oauth.h"
 #include "sbi/jwt.h"
 #include "sbi/nnrf-handler.h"

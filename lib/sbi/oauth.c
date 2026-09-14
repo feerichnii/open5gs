@@ -8,8 +8,6 @@ static bool uri_is_oauth_exempt(const char *uri)
         return true;
     if (strstr(uri, "/nnrf-nfm/") || strstr(uri, "/oauth2/"))
         return true;
-    if (strstr(uri, "/nnrf-disc/"))
-        return false;
     return false;
 }
 
@@ -18,6 +16,10 @@ bool ogs_sbi_oauth_server_authorize(
 {
     ogs_hash_index_t *hi = NULL;
     const char *auth = NULL;
+    char *payload = NULL;
+    cJSON *root = NULL, *exp = NULL, *aud = NULL;
+    ogs_time_t now;
+    const char *secret;
 
     if (!ogs_sbi_self()->oauth2.enabled)
         return true;
@@ -42,16 +44,53 @@ bool ogs_sbi_oauth_server_authorize(
         return false;
     }
 
-    if (!ogs_sbi_jwt_verify_hs256(auth + 7,
-                ogs_sbi_self()->oauth2.signing_key ?
-                    ogs_sbi_self()->oauth2.signing_key : "open5gs-lab-key",
-                NULL)) {
+    secret = ogs_sbi_self()->oauth2.signing_key ?
+        ogs_sbi_self()->oauth2.signing_key : "open5gs-lab-key";
+
+    if (!ogs_sbi_jwt_verify_hs256(auth + 7, secret, &payload)) {
         ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_UNAUTHORIZED,
                 NULL, "Invalid access token", NULL,
                 OGS_SBI_CAUSE_AUTHENTICATION_REJECTED);
         return false;
     }
 
+    root = cJSON_Parse(payload);
+    ogs_free(payload);
+    if (!root) {
+        ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_UNAUTHORIZED,
+                NULL, "Invalid token payload", NULL,
+                OGS_SBI_CAUSE_AUTHENTICATION_REJECTED);
+        return false;
+    }
+
+    now = ogs_time_now();
+    exp = cJSON_GetObjectItemCaseSensitive(root, "exp");
+    if (!exp || !cJSON_IsNumber(exp) ||
+            (ogs_time_t)exp->valuedouble < ogs_time_sec(now)) {
+        cJSON_Delete(root);
+        ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_UNAUTHORIZED,
+                NULL, "Token expired", NULL,
+                OGS_SBI_CAUSE_AUTHENTICATION_REJECTED);
+        return false;
+    }
+
+    aud = cJSON_GetObjectItemCaseSensitive(root, "aud");
+    if (aud && cJSON_IsString(aud) && aud->valuestring &&
+            ogs_sbi_self()->nf_instance) {
+        const char *my_type = OpenAPI_nf_type_ToString(
+                ogs_sbi_self()->nf_instance->nf_type);
+        if (my_type && strcmp(aud->valuestring, my_type) != 0 &&
+                strcmp(aud->valuestring,
+                    ogs_sbi_self()->nf_instance->id) != 0) {
+            cJSON_Delete(root);
+            ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_FORBIDDEN,
+                    NULL, "Token audience mismatch", NULL,
+                    OGS_SBI_CAUSE_AUTHENTICATION_REJECTED);
+            return false;
+        }
+    }
+
+    cJSON_Delete(root);
     return true;
 }
 
@@ -65,8 +104,13 @@ char *ogs_sbi_oauth_issue_access_token(
     ogs_time_t exp = now + ogs_time_from_sec(ogs_sbi_self()->oauth2.token_ttl);
     const char *secret = ogs_sbi_self()->oauth2.signing_key ?
         ogs_sbi_self()->oauth2.signing_key : "open5gs-lab-key";
+    const char *aud;
 
     ogs_assert(nf_instance_id);
+    (void)nf_type;
+
+    aud = target_nf_type ?
+        OpenAPI_nf_type_ToString(target_nf_type) : "NRF";
 
     payload = ogs_msprintf(
             "{\"iss\":\"%s\",\"sub\":\"%s\",\"aud\":\"%s\","
@@ -74,7 +118,7 @@ char *ogs_sbi_oauth_issue_access_token(
             ogs_sbi_self()->oauth2.issuer ?
                 ogs_sbi_self()->oauth2.issuer : "nrf.5gc.lab",
             nf_instance_id,
-            OpenAPI_nf_type_ToString(target_nf_type),
+            aud,
             scope ? scope : "nnrf-nfm",
             (long long)ogs_time_sec(exp),
             (long long)ogs_time_sec(now));
@@ -83,4 +127,62 @@ char *ogs_sbi_oauth_issue_access_token(
     jwt = ogs_sbi_jwt_encode_hs256(payload, secret);
     ogs_free(payload);
     return jwt;
+}
+
+/* Parse application/x-www-form-urlencoded body into strdup'd values */
+bool ogs_sbi_oauth_parse_token_form(
+        const char *body,
+        char **grant_type,
+        char **nf_instance_id,
+        char **nf_type,
+        char **target_nf_type,
+        char **scope,
+        char **target_nf_instance_id)
+{
+    char *copy = NULL, *p = NULL, *save = NULL;
+
+    if (!body)
+        return false;
+
+    if (grant_type) *grant_type = NULL;
+    if (nf_instance_id) *nf_instance_id = NULL;
+    if (nf_type) *nf_type = NULL;
+    if (target_nf_type) *target_nf_type = NULL;
+    if (scope) *scope = NULL;
+    if (target_nf_instance_id) *target_nf_instance_id = NULL;
+
+    copy = ogs_strdup(body);
+    ogs_assert(copy);
+
+    for (p = strtok_r(copy, "&", &save); p; p = strtok_r(NULL, "&", &save)) {
+        char *eq = strchr(p, '=');
+        char *key, *val, *decoded;
+
+        if (!eq)
+            continue;
+        *eq = '\0';
+        key = p;
+        val = eq + 1;
+        decoded = ogs_sbi_url_decode(val);
+        if (!decoded)
+            decoded = ogs_strdup(val);
+
+        if (!strcmp(key, "grant_type") && grant_type)
+            *grant_type = decoded;
+        else if (!strcmp(key, "nfInstanceId") && nf_instance_id)
+            *nf_instance_id = decoded;
+        else if (!strcmp(key, "nfType") && nf_type)
+            *nf_type = decoded;
+        else if (!strcmp(key, "targetNfType") && target_nf_type)
+            *target_nf_type = decoded;
+        else if (!strcmp(key, "scope") && scope)
+            *scope = decoded;
+        else if (!strcmp(key, "targetNfInstanceId") && target_nf_instance_id)
+            *target_nf_instance_id = decoded;
+        else
+            ogs_free(decoded);
+    }
+
+    ogs_free(copy);
+    return true;
 }

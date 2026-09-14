@@ -14,5 +14,13 @@ bool ogs_sbi_oauth_server_authorize(
 char *ogs_sbi_oauth_issue_access_token(
         const char *nf_instance_id, OpenAPI_nf_type_e nf_type,
         OpenAPI_nf_type_e target_nf_type, const char *scope);
+bool ogs_sbi_oauth_parse_token_form(
+        const char *body,
+        char **grant_type,
+        char **nf_instance_id,
+        char **nf_type,
+        char **target_nf_type,
+        char **scope,
+        char **target_nf_instance_id);
 
 #endif /* OGS_SBI_OAUTH_H */

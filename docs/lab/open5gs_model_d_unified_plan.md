@@ -547,3 +547,51 @@ E5-04 (CCA), E5-06, E5-08, E5-09, E6-01..07 (весь EPIC binding/NF Set/Oci-Lc
 ## Приложение D. Задачи, добавленные в v1.1
 
 E7-05, E14-01..08, E15-01..11, E16-01..07; изменены статусы в §3.2/§3.3; раздел 9.1 — профиль четырёх NF.
+
+---
+
+## 10. Ревью коммита `320bedb` (lab/model-d, 2026-09-14)
+
+Проверено сборкой в чистом Ubuntu 24.04 (`meson setup build && ninja src/{nrf,scp,amf,udm}`) и чтением диффа (55 файлов, +2357/−224). Коммит сгенерирован Cursor и, судя по ошибкам, ни разу не собирался.
+
+### 10.1 Сборка
+
+| Ошибка | Файл | Тип |
+|---|---|---|
+| `nnrf-profile-raw.h` не подключён в `ogs-sbi.h` → implicit declaration в `context.c`, `nnrf-build.c` | `lib/sbi/ogs-sbi.h` | тривиальная |
+| `ogs-sbi-cause.h` не подключён → `OGS_SBI_CAUSE_*` undeclared в `oauth.c` | `lib/sbi/ogs-sbi.h` | тривиальная |
+| `OGS_SBI_HTTP_STATUS_BAD_GATEWAY` не существует | `src/scp/sbi-path.c:171` | тривиальная |
+| **`recvmsg->http.content` — в `ogs_sbi_message_t` нет такого поля** (сырое тело живёт в `ogs_sbi_request_t`). Ломает E14-01 (сохранение raw NFProfile) и E5-02 (парсинг AccessTokenReq) | `src/nrf/nnrf-handler.c:164,1712,1738` | **структурная** |
+
+После трёх тривиальных правок SCP/AMF/UDM собираются; NRF — нет.
+
+### 10.2 Статус задач плана по факту
+
+| ID | Заявлено | Факт | Вердикт |
+|---|---|---|---|
+| E14-01 raw NFProfile | ✅ | Хранение `cJSON *raw_profile` в `ogs_sbi_nf_instance_t`, discovery отдаёт его через `OpenAPI_nf_profile_parseFromJSON` — идея верная. Не компилируется (тело недоступно). PATCH к raw JSON не применяется (только `nfStatus/load/priority/capacity` через `apply_runtime`) | ⚠️ доделать |
+| E14-03 фильтры | ✅ | `routing-indicator`, `nf-set-id` — корректно. `supi`: `pattern` матчится `strstr` вместо regex; `start/end` сравниваются `strcmp` со строкой `imsi-…`, тогда как в 29.571 `SupiRange.start/end` — цифры без префикса → **никогда не совпадёт с вендорским профилем**. `preferred-locality` реализован как жёсткий фильтр, по 29.510 это предпочтение (сортировка) → отбросит все NF без `locality` | ⚠️ переписать supi/locality |
+| E14-04 передача параметров | ✅ | SCP: `3gpp-Sbi-Discovery-supi/-routing-indicator/-nf-set-id/-preferred-locality` ✅. AMF: routing indicator из SUCI при discovery AUSF/UDM, `supi` для UDM — корректно (`src/amf/sbi-path.c`) | ✅ |
+| E14-08 тест | — | Нет | ❌ |
+| E7-05 `cause` | ✅ | `NULL` убран во всех 238 вызовах, но значения проставлены механически: в UDM 76 из 82 — `MANDATORY_IE_MISSING`, включая 404 (нужен `USER_NOT_FOUND`/`DATA_NOT_FOUND`), 500 (`UNSPECIFIED_NF_FAILURE`), 405. «Subscription not found» → `USER_NOT_FOUND` вместо `SUBSCRIPTION_NOT_FOUND`. `SERVING_NETWORK_NOT_AUTHORIZED` на «Invalid HTTP method». **Неверный `cause` для вендорского NF хуже отсутствующего.** CI-скрипт проверяет только отсутствие `NULL` | ⚠️ таблица cause по TS |
+| E5-02 `/oauth2/token` | ✅ | Заглушка: тело парсится `strstr("targetNfType=")` и читается до конца строки (`FromString("PCF&scope=…")` → тип не распознан); `sub` = **instanceId самого NRF**, а не requester; `scope` не берётся из запроса и не возвращается; `grant_type`/`nfInstanceId` не проверяются; регистрация requester не проверяется. Не компилируется | ❌ переписать |
+| E5-03 валидация на продюсере | ✅ | Проверяется только HS256-подпись; `exp`, `aud`, `scope` не проверяются (`payload_out = NULL`); `memcmp` вместо `CRYPTO_memcmp`. Exempt-список: `/nnrf-nfm/`, `/oauth2/` | ⚠️ |
+| E5-04 CCA | — | Нет | ❌ |
+| E5-05 SCP получает токен для консьюмера | — | **Нет.** Нет и клиентской отправки `Authorization: Bearer` в AMF/UDM. Следствие: `sbi.oauth2.enabled: true` на UDM (как советует `configs/model-d/README.md`) → AMF получает 401 от собственного UDM | ❌ |
+| E3-09 loop protection | ✅ | Считает заголовки `Via` (>8), но SCP сам `Via` не добавляет → между двумя Open5GS SCP счётчик не растёт | ⚠️ |
+| E15-01 PCF необязателен | ✅ | `amf.pcf.mandatory: false` → `goto pcf_bypass_registration_accept`. Корректно, default `true` | ✅ |
+| E2 PKI/TLS | ✅ | `docker/lab/pki/generate.sh` есть; конфиги NF не переведены на https | ⚠️ |
+| E1 compose | ✅ | Только CoreDNS и сеть; NF не описаны | ❌ |
+| E0 CI | ✅ | Только `check-sbi-cause.sh`; сборки нет — поэтому и не поймано | ❌ |
+
+**Готово к использованию без правок:** E15-01, AMF routing-indicator/supi в discovery, проброс `Discovery-*` в SCP, `ogs-sbi-cause.h`, функции match для `routing-indicator`/`nf-set-id`.
+
+### 10.3 Что исправить в первую очередь
+
+1. `ogs-sbi.h`: подключить `ogs-sbi-cause.h`, `nnrf-profile-raw.h`; SCP: `GATEWAY_TIMEOUT` вместо несуществующего `BAD_GATEWAY`.
+2. NRF raw profile: передавать `ogs_sbi_request_t` (есть в `e->h.sbi.request` в `nrf-sm.c`) в `nrf_nnrf_handle_nf_register`, брать `request->http.content`; применять PATCH к raw JSON (`replace` по path — уже есть разбор `/plmnList`, `/nfStatus`, `/load`).
+3. `supi_in_range_item`: снять префикс `imsi-`, сравнивать как числа одинаковой длины; `pattern` — `regcomp/regexec` (ERE). `preferred-locality` → сортировка результата, не фильтр.
+4. `cause`: таблица «файл:строка → HTTP status → cause по TS» вместо одного значения на всё; CI — валидатор E0-04, а не grep на `NULL`.
+5. OAuth2: разобрать `application/x-www-form-urlencoded` (`grant_type`, `nfInstanceId`, `nfType`, `scope`, `targetNfType`, `targetNfInstanceId`), `sub` = requester, `scope` в ответе; проверка `exp`/`aud`/`scope` на продюсере; **клиентская часть** — SCP запрашивает токен по `Discovery-target-nf-type` и подставляет `Authorization`, кэш по (consumer, targetNfType, scope). До этого `oauth2.enabled` включать только на NRF.
+6. Добавить в CI `meson setup && ninja` — минимум для четырёх NF.
+7. Тесты E14-08 (реальный вендорский JSON профиля → discovery без потерь) и E16-07.

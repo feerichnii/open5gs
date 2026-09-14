@@ -130,7 +130,7 @@ void nrf_nf_state_will_register(ogs_fsm_t *s, nrf_event_t *e)
                 CASE(OGS_SBI_HTTP_METHOD_PUT)
 
                     handled = nrf_nnrf_handle_nf_register(
-                            nf_instance, stream, message);
+                            nf_instance, stream, message, e->h.sbi.request);
                     if (handled == true)
                         OGS_FSM_TRAN(s, nrf_nf_state_registered);
                     else
@@ -143,7 +143,7 @@ void nrf_nf_state_will_register(ogs_fsm_t *s, nrf_event_t *e)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, message,
-                            "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                            "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
                     OGS_FSM_TRAN(s, nrf_nf_state_exception);
                 END
                 break;
@@ -155,7 +155,7 @@ void nrf_nf_state_will_register(ogs_fsm_t *s, nrf_event_t *e)
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, message,
                         "Invalid resource name",
-                        message->h.resource.component[0], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                        message->h.resource.component[0], OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
                 OGS_FSM_TRAN(s, nrf_nf_state_exception);
             END
             break;
@@ -167,7 +167,7 @@ void nrf_nf_state_will_register(ogs_fsm_t *s, nrf_event_t *e)
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, message,
                     "Invalid resource name", message->h.service.name,
-                    OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                    OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
             OGS_FSM_TRAN(s, nrf_nf_state_exception);
         }
         break;
@@ -265,7 +265,7 @@ void nrf_nf_state_registered(ogs_fsm_t *s, nrf_event_t *e)
                     }
 
                     handled = nrf_nnrf_handle_nf_update(
-                            nf_instance, stream, message);
+                            nf_instance, stream, message, e->h.sbi.request);
                     if (handled == false) {
                         ogs_error("[%s] Invalid NF update [type:%s] - "
                                 "keeping existing registration",
@@ -310,7 +310,7 @@ void nrf_nf_state_registered(ogs_fsm_t *s, nrf_event_t *e)
                     ogs_assert(true ==
                         ogs_sbi_server_send_error(stream,
                             OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, message,
-                            "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                            "Invalid HTTP method", message->h.method, OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
                     OGS_FSM_TRAN(s, nrf_nf_state_exception);
                 END
                 break;
@@ -322,7 +322,7 @@ void nrf_nf_state_registered(ogs_fsm_t *s, nrf_event_t *e)
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, message,
                         "Invalid resource name",
-                        message->h.resource.component[0], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                        message->h.resource.component[0], OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
                 OGS_FSM_TRAN(s, nrf_nf_state_exception);
             END
             break;
@@ -334,7 +334,7 @@ void nrf_nf_state_registered(ogs_fsm_t *s, nrf_event_t *e)
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED, message,
                     "Invalid resource name", message->h.service.name,
-                    OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                    OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
             OGS_FSM_TRAN(s, nrf_nf_state_exception);
         }
         break;

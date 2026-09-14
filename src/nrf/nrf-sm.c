@@ -86,24 +86,25 @@ void nrf_state_operational(ogs_fsm_t *s, nrf_event_t *e)
             break;
         }
 
+        /* Nnrf_AccessToken is outside /nnrf-*/v1 versioned APIs */
+        if (request->h.uri && strstr(request->h.uri, "/oauth2/token")) {
+            if (!strcmp(message.h.method, OGS_SBI_HTTP_METHOD_POST))
+                nrf_nnrf_handle_oauth2_token(stream, &message, request);
+            else
+                ogs_sbi_server_send_error(stream,
+                        OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED,
+                        &message, "Method not allowed", NULL,
+                        OGS_SBI_CAUSE_MANDATORY_IE_INCORRECT);
+            ogs_sbi_message_free(&message);
+            break;
+        }
+
         if (strcmp(message.h.api.version, OGS_SBI_API_V1) != 0) {
             ogs_error("Not supported version [%s]", message.h.api.version);
             ogs_assert(true ==
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
                     &message, "Not supported version", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
-            ogs_sbi_message_free(&message);
-            break;
-        }
-
-        if (message.h.uri && strstr(message.h.uri, "/oauth2/token")) {
-            if (!strcmp(message.h.method, OGS_SBI_HTTP_METHOD_POST))
-                nrf_nnrf_handle_oauth2_token(stream, &message);
-            else
-                ogs_sbi_server_send_error(stream,
-                        OGS_SBI_HTTP_STATUS_METHOD_NOT_ALLOWED,
-                        &message, "Method not allowed", NULL,
-                        OGS_SBI_CAUSE_MANDATORY_IE_INCORRECT);
             ogs_sbi_message_free(&message);
             break;
         }

@@ -35,7 +35,8 @@ static void handle_nf_discover_search_result(
  * @return true if registration is successful; otherwise, false.
  */
 bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
-        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg)
+        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg,
+        ogs_sbi_request_t *request)
 {
     int status;
     ogs_sbi_response_t *response = NULL;
@@ -161,8 +162,8 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
         return false;
     }
 
-    if (recvmsg->http.content) {
-        cJSON *raw = cJSON_Parse(recvmsg->http.content);
+    if (request && request->http.content) {
+        cJSON *raw = cJSON_Parse(request->http.content);
         if (raw)
             ogs_sbi_nf_instance_set_raw_profile(nf_instance, raw);
         else
@@ -309,7 +310,8 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
 }
 
 bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
-        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg)
+        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg,
+        ogs_sbi_request_t *request)
 {
     ogs_sbi_response_t *response = NULL;
     OpenAPI_list_t *PatchItemList = NULL;
@@ -326,7 +328,7 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
     SWITCH(recvmsg->h.method)
     CASE(OGS_SBI_HTTP_METHOD_PUT)
         return nrf_nnrf_handle_nf_register(
-                nf_instance, stream, recvmsg);
+                nf_instance, stream, recvmsg, request);
 
     CASE(OGS_SBI_HTTP_METHOD_PATCH)
         PatchItemList = recvmsg->PatchItemList;
@@ -465,6 +467,29 @@ bool nrf_nnrf_handle_nf_update(ogs_sbi_nf_instance_t *nf_instance,
             DEFAULT
                 ogs_error("Unknown PatchItem.Path [%s]", patch_item->path);
             END
+
+            /* Keep raw NFProfile JSON in sync with successful replace ops */
+            if (nf_instance->raw_profile && patch_item->path &&
+                patch_item->value && patch_item->value->json) {
+                cJSON *target = NULL;
+                char *json_path = patch_item->path;
+
+                if (json_path[0] == '/')
+                    json_path++;
+                target = cJSON_GetObjectItemCaseSensitive(
+                        nf_instance->raw_profile, json_path);
+                if (target) {
+                    cJSON *dup = cJSON_Duplicate(patch_item->value->json, 1);
+                    if (dup)
+                        cJSON_ReplaceItemInObjectCaseSensitive(
+                                nf_instance->raw_profile, json_path, dup);
+                } else {
+                    cJSON *dup = cJSON_Duplicate(patch_item->value->json, 1);
+                    if (dup)
+                        cJSON_AddItemToObject(
+                                nf_instance->raw_profile, json_path, dup);
+                }
+            }
         }
 
         response = ogs_sbi_build_response(
@@ -543,7 +568,7 @@ bool nrf_nnrf_handle_nf_status_subscribe(
         ogs_assert(true ==
             ogs_sbi_server_send_error(
                 stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-                recvmsg, "No subscription data available", NULL, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                recvmsg, "No subscription data available", NULL, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
         return false;
     }
 
@@ -665,7 +690,7 @@ bool nrf_nnrf_handle_nf_status_subscribe(
                 ogs_sbi_server_send_error(
                     stream, OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
                     recvmsg, "No SBI client available",
-                    subscription_data->notification_uri, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                    subscription_data->notification_uri, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
             ogs_free(fqdn);
             ogs_freeaddrinfo(addr);
             ogs_freeaddrinfo(addr6);
@@ -1690,14 +1715,22 @@ static void handle_nf_discover_search_result(
 }
 
 bool nrf_nnrf_handle_oauth2_token(
-        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg)
+        ogs_sbi_stream_t *stream, ogs_sbi_message_t *recvmsg,
+        ogs_sbi_request_t *request)
 {
     ogs_sbi_response_t *response = NULL;
     char *token = NULL;
     char *body = NULL;
-    OpenAPI_nf_type_e target_nf_type = OpenAPI_nf_type_AMF;
-    const char *nf_id = ogs_sbi_self()->nf_instance ?
-        ogs_sbi_self()->nf_instance->id : "lab-consumer";
+    char *grant_type = NULL;
+    char *nf_instance_id = NULL;
+    char *nf_type_str = NULL;
+    char *target_nf_type_str = NULL;
+    char *scope = NULL;
+    char *target_nf_instance_id = NULL;
+    OpenAPI_nf_type_e target_nf_type = OpenAPI_nf_type_NULL;
+    OpenAPI_nf_type_e requester_nf_type = OpenAPI_nf_type_NULL;
+    ogs_sbi_nf_instance_t *requester = NULL;
+    const char *content = NULL;
 
     ogs_assert(stream);
     ogs_assert(recvmsg);
@@ -1709,37 +1742,79 @@ bool nrf_nnrf_handle_oauth2_token(
         return false;
     }
 
-    if (recvmsg->http.content && strstr(recvmsg->http.content, "targetNfType=")) {
-        char *p = strstr(recvmsg->http.content, "targetNfType=");
-        if (p) {
-            p += strlen("targetNfType=");
-            target_nf_type = OpenAPI_nf_type_FromString(p);
-        }
+    content = request && request->http.content ? request->http.content : NULL;
+    ogs_sbi_oauth_parse_token_form(content,
+            &grant_type, &nf_instance_id, &nf_type_str,
+            &target_nf_type_str, &scope, &target_nf_instance_id);
+
+    if (!grant_type || strcmp(grant_type, "client_credentials") != 0) {
+        ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
+                recvmsg, "Invalid grant_type", grant_type,
+                OGS_SBI_CAUSE_MANDATORY_IE_INCORRECT);
+        goto cleanup;
+    }
+
+    if (!nf_instance_id || !target_nf_type_str) {
+        ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
+                recvmsg, "Missing nfInstanceId or targetNfType", NULL,
+                OGS_SBI_CAUSE_MANDATORY_IE_MISSING);
+        goto cleanup;
+    }
+
+    target_nf_type = OpenAPI_nf_type_FromString(target_nf_type_str);
+    if (!target_nf_type) {
+        ogs_sbi_server_send_error(stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
+                recvmsg, "Invalid targetNfType", target_nf_type_str,
+                OGS_SBI_CAUSE_MANDATORY_IE_INCORRECT);
+        goto cleanup;
+    }
+
+    if (nf_type_str)
+        requester_nf_type = OpenAPI_nf_type_FromString(nf_type_str);
+
+    requester = ogs_sbi_nf_instance_find(nf_instance_id);
+    if (!requester) {
+        ogs_warn("AccessToken for unregistered NF [%s] (lab allow)",
+                nf_instance_id);
     }
 
     token = ogs_sbi_oauth_issue_access_token(
-            nf_id, OpenAPI_nf_type_NRF, target_nf_type, "default");
+            nf_instance_id,
+            requester_nf_type ? requester_nf_type : OpenAPI_nf_type_SCP,
+            target_nf_type,
+            scope ? scope : "default");
     if (!token) {
         ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
                 recvmsg, "Token issue failed", NULL,
                 OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE);
-        return false;
+        goto cleanup;
     }
 
-    body = ogs_msprintf("{\"access_token\":\"%s\",\"token_type\":\"Bearer\","
-            "\"expires_in\":%d}", token, ogs_sbi_self()->oauth2.token_ttl);
+    body = ogs_msprintf(
+            "{\"access_token\":\"%s\",\"token_type\":\"Bearer\","
+            "\"expires_in\":%d,\"scope\":\"%s\"}",
+            token, ogs_sbi_self()->oauth2.token_ttl,
+            scope ? scope : "default");
     ogs_free(token);
     ogs_assert(body);
 
     response = ogs_sbi_response_new();
     ogs_assert(response);
     response->status = OGS_SBI_HTTP_STATUS_OK;
-    response->http.content_type = ogs_strdup("application/json");
+    response->http.content_type =
+        ogs_strdup(OGS_SBI_CONTENT_JSON_TYPE);
     response->http.content = body;
     response->http.content_length = strlen(body);
 
     ogs_sbi_server_send_response(stream, response);
-    ogs_sbi_response_free(response);
-    return true;
+
+cleanup:
+    ogs_free(grant_type);
+    ogs_free(nf_instance_id);
+    ogs_free(nf_type_str);
+    ogs_free(target_nf_type_str);
+    ogs_free(scope);
+    ogs_free(target_nf_instance_id);
+    return response != NULL;
 }

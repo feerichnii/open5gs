@@ -9,6 +9,7 @@
 #include <openssl/evp.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
+#include <openssl/crypto.h>
 
 static char *base64url_encode(const unsigned char *in, int inlen)
 {
@@ -137,7 +138,7 @@ bool ogs_sbi_jwt_verify_hs256(
             expected, &expected_len);
     plen = base64url_decode(sig_b64, sig, sizeof(sig));
     if (plen <= 0 || (unsigned int)plen != expected_len ||
-            memcmp(sig, expected, expected_len) != 0)
+            CRYPTO_memcmp(sig, expected, expected_len) != 0)
         goto fail;
 
     plen = base64url_decode(dot1 + 1, payload_buf, sizeof(payload_buf) - 1);

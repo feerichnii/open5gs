@@ -103,7 +103,7 @@ bool udm_nudr_dr_handle_subscription_authentication(
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
                         recvmsg, "No AuthenticationSubscription",
-                        udm_ue->suci, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                        udm_ue->suci, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
                 return false;
             }
 
@@ -127,7 +127,7 @@ bool udm_nudr_dr_handle_subscription_authentication(
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
                         recvmsg, "No encPermanentKey", udm_ue->suci,
-                        OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                        OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
                 return false;
             }
             if (!AuthenticationSubscription->enc_opc_key) {
@@ -135,7 +135,7 @@ bool udm_nudr_dr_handle_subscription_authentication(
                 ogs_assert(true ==
                     ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-                    recvmsg, "No encPermanentKey", udm_ue->suci, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                    recvmsg, "No encPermanentKey", udm_ue->suci, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
                 return false;
             }
             if (!AuthenticationSubscription->authentication_management_field) {
@@ -145,7 +145,7 @@ bool udm_nudr_dr_handle_subscription_authentication(
                     ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
                     recvmsg, "No authenticationManagementField", udm_ue->suci,
-                    OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                    OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
             return false;
         }
         if (!AuthenticationSubscription->sequence_number) {
@@ -153,7 +153,7 @@ bool udm_nudr_dr_handle_subscription_authentication(
             ogs_assert(true ==
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-                    recvmsg, "No SequenceNumber", udm_ue->suci, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                    recvmsg, "No SequenceNumber", udm_ue->suci, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
                 return false;
             }
             if (!AuthenticationSubscription->sequence_number->sqn) {
@@ -161,7 +161,7 @@ bool udm_nudr_dr_handle_subscription_authentication(
                 ogs_assert(true ==
                     ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_INTERNAL_SERVER_ERROR,
-                    recvmsg, "No SequenceNumber.sqn", udm_ue->suci, OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                    recvmsg, "No SequenceNumber.sqn", udm_ue->suci, OGS_SBI_CAUSE_UNSPECIFIED_MSG_FAILURE));
                 return false;
             }
 
