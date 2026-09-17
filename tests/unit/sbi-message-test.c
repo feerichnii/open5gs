@@ -717,6 +717,27 @@ static void sbi_message_test8(abts_case *tc, void *data)
         ogs_sbi_service_name_to_nf_type(OpenAPI_service_name_nudsf_dr));
     ABTS_INT_EQUAL(tc, OpenAPI_nf_type_NSSAAF,
         ogs_sbi_service_name_to_nf_type(OpenAPI_service_name_nnssaaf_nssaa));
+
+    /* URI → service inference (SCP interop) */
+    ABTS_INT_EQUAL(tc, OpenAPI_service_name_nnrf_nfm,
+        ogs_sbi_service_name_from_uri(
+            "/nnrf-nfm/v1/nf-instances/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"));
+    ABTS_INT_EQUAL(tc, OpenAPI_service_name_nudm_sdm,
+        ogs_sbi_service_name_from_uri(
+            "/nudm-sdm/v2/imsi-001010000000001/sm-data"));
+    ABTS_INT_EQUAL(tc, OpenAPI_service_name_nsmf_pdusession,
+        ogs_sbi_service_name_from_uri(
+            "http://smf.example/nsmf-pdusession/v1/sm-contexts"));
+    ABTS_INT_EQUAL(tc, OpenAPI_service_name_NULL,
+        ogs_sbi_service_name_from_uri("/unknown-service/v1/foo"));
+    ABTS_INT_EQUAL(tc, OpenAPI_service_name_NULL,
+        ogs_sbi_service_name_from_uri(NULL));
+    ABTS_INT_EQUAL(tc, OpenAPI_service_name_NULL,
+        ogs_sbi_service_name_from_uri(""));
+    ABTS_TRUE(tc, ogs_sbi_nnrf_nfm_is_status_notify_uri(
+            "/nnrf-nfm/v1/nf-status-notify"));
+    ABTS_TRUE(tc, !ogs_sbi_nnrf_nfm_is_status_notify_uri(
+            "/nnrf-nfm/v1/nf-instances/x"));
 }
 
 static void sbi_message_test9(abts_case *tc, void *data)

@@ -1507,6 +1507,63 @@ void ogs_sbi_header_free(ogs_sbi_header_t *h)
         ogs_free(h->resource.component[i]);
 }
 
+OpenAPI_service_name_e ogs_sbi_service_name_from_uri(const char *uri)
+{
+    ogs_sbi_message_t message;
+    ogs_sbi_header_t header;
+    OpenAPI_service_name_e service = OpenAPI_service_name_NULL;
+    int service_id;
+
+    if (!uri || !uri[0])
+        return OpenAPI_service_name_NULL;
+
+    memset(&header, 0, sizeof(header));
+    header.uri = (char *)uri;
+
+    if (ogs_sbi_parse_header(&message, &header) != OGS_OK) {
+        ogs_sbi_header_free(&header);
+        return OpenAPI_service_name_NULL;
+    }
+
+    if (header.service.name) {
+        service_id = ogs_sbi_service_name_id_from_string(header.service.name);
+        if (service_id > OpenAPI_service_name_NULL &&
+                service_id < OGS_SBI_SERVICE_NAME_ID_N32C_HANDSHAKE)
+            service = (OpenAPI_service_name_e)service_id;
+    }
+
+    ogs_sbi_header_free(&header);
+    return service;
+}
+
+bool ogs_sbi_nnrf_nfm_is_status_notify_uri(const char *uri)
+{
+    ogs_sbi_message_t message;
+    ogs_sbi_header_t header;
+    bool is_notify = false;
+
+    if (!uri || !uri[0])
+        return false;
+
+    memset(&header, 0, sizeof(header));
+    header.uri = (char *)uri;
+
+    if (ogs_sbi_parse_header(&message, &header) != OGS_OK) {
+        ogs_sbi_header_free(&header);
+        return false;
+    }
+
+    if (header.service.name &&
+            !strcmp(header.service.name, "nnrf-nfm") &&
+            header.resource.component[0] &&
+            !strcmp(header.resource.component[0],
+                OGS_SBI_RESOURCE_NAME_NF_STATUS_NOTIFY))
+        is_notify = true;
+
+    ogs_sbi_header_free(&header);
+    return is_notify;
+}
+
 void ogs_sbi_http_hash_free(ogs_hash_t *hash)
 {
     ogs_hash_index_t *hi;

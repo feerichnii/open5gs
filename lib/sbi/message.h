@@ -699,6 +699,11 @@ ogs_pkbuf_t *ogs_sbi_find_part_by_content_id(
 int ogs_sbi_parse_header(ogs_sbi_message_t *message, ogs_sbi_header_t *header);
 void ogs_sbi_header_free(ogs_sbi_header_t *h);
 
+/* First SBI path component → OpenAPI service name (NULL if unknown) */
+OpenAPI_service_name_e ogs_sbi_service_name_from_uri(const char *uri);
+/* True for /nnrf-nfm/.../nf-status-notify (local SCP notification API) */
+bool ogs_sbi_nnrf_nfm_is_status_notify_uri(const char *uri);
+
 void ogs_sbi_http_hash_free(ogs_hash_t *hash);
 
 ogs_sbi_discovery_option_t *ogs_sbi_discovery_option_new(void);
