@@ -121,13 +121,15 @@ void scp_state_operational(ogs_fsm_t *s, scp_event_t *e)
                 break;
 
             DEFAULT
-                ogs_error("Invalid resource name [%s]",
+                ogs_error("Transit Nnrf_NFManagement request reached "
+                        "local SCP handler [%s]",
                         message.h.resource.component[0]);
                 ogs_assert(true ==
                     ogs_sbi_server_send_error(stream,
                         OGS_SBI_HTTP_STATUS_BAD_REQUEST, &message,
-                        "Invalid resource name",
-                        message.h.resource.component[0], OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+                        "Transit request reached local SCP handler",
+                        message.h.resource.component[0],
+                        OGS_SBI_CAUSE_UNSUPPORTED_RESOURCE_URI));
             END
             break;
 

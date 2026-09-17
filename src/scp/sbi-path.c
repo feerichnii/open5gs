@@ -422,7 +422,7 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
                 "Missing User-Agent", request->h.uri,
-                "MANDATORY_IE_MISSING"));
+                OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
         return OGS_OK;
     }
 
@@ -434,40 +434,145 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
             ogs_sbi_server_send_error(stream,
                 OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
                 "Invalid User-Agent", request->h.uri,
-                "MANDATORY_IE_INCORRECT"));
+                OGS_SBI_CAUSE_MANDATORY_IE_INCORRECT));
         return OGS_OK;
+    }
+
+    /*
+     * Generic SBI routing (Model D / vendor interop):
+     * infer missing Discovery-service-names from URI; recover target-nf-type
+     * from service when unique; reject URI vs header inconsistency.
+     */
+    {
+        OpenAPI_service_name_e service_from_uri =
+            ogs_sbi_service_name_from_uri(request->h.uri);
+        bool local_notify =
+            ogs_sbi_nnrf_nfm_is_status_notify_uri(request->h.uri);
+
+        ogs_info("[SCP] Routing request: method=%s uri=%s "
+                "target_nf_type=%s service_header=%s service_uri=%s "
+                "target_api_root=%s",
+                request->h.method ? request->h.method : "(null)",
+                request->h.uri,
+                target_nf_type_presence ?
+                    OpenAPI_nf_type_ToString(target_nf_type) : "(absent)",
+                service_names_presence && service_name ?
+                    OpenAPI_service_name_ToString(service_name) : "(absent)",
+                service_from_uri ?
+                    OpenAPI_service_name_ToString(service_from_uri) : "(null)",
+                headers.target_apiroot ? headers.target_apiroot : "(null)");
+
+        /* Header service must match URI service when both known */
+        if (service_names_presence && service_name &&
+                service_from_uri != OpenAPI_service_name_NULL &&
+                service_name != service_from_uri) {
+            ogs_error("[SCP] Routing failed: reason=service-uri-mismatch "
+                    "header=%s uri=%s",
+                    OpenAPI_service_name_ToString(service_name),
+                    OpenAPI_service_name_ToString(service_from_uri));
+            scp_assoc_remove(assoc);
+            ogs_assert(true ==
+                ogs_sbi_server_send_error(stream,
+                    OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
+                    "Inconsistent SBI routing information",
+                    "Service name in discovery header does not match request URI",
+                    OGS_SBI_CAUSE_MANDATORY_IE_INCORRECT));
+            return OGS_OK;
+        }
+
+        /* target present, service missing → infer from URI */
+        if (target_nf_type_presence && !service_names_presence) {
+            if (service_from_uri != OpenAPI_service_name_NULL) {
+                service_name = service_from_uri;
+                service_names_presence = true;
+                if (!discovery_option->num_of_service_names)
+                    ogs_sbi_discovery_option_add_service_names(
+                            discovery_option, service_name);
+                ogs_warn("[SCP] Service inferred from URI: service=%s uri=%s",
+                        OpenAPI_service_name_ToString(service_name),
+                        request->h.uri);
+            }
+        }
+
+        /* service present, target missing → recover NF type when unique */
+        if (service_names_presence && service_name &&
+                !target_nf_type_presence) {
+            OpenAPI_nf_type_e inferred =
+                ogs_sbi_service_name_to_nf_type(service_name);
+            if (inferred) {
+                target_nf_type = inferred;
+                target_nf_type_presence = true;
+                ogs_warn("[SCP] target-nf-type inferred from service [%s]->[%s]",
+                        OpenAPI_service_name_ToString(service_name),
+                        OpenAPI_nf_type_ToString(target_nf_type));
+            }
+        }
+
+        /*
+         * No discovery headers, but URI is transit Nnrf_NFManagement
+         * (nf-instances) → treat as NRF registration/update, not local SM.
+         */
+        if (!target_nf_type_presence && !service_names_presence &&
+                !headers.target_apiroot &&
+                service_from_uri == OpenAPI_service_name_nnrf_nfm &&
+                !local_notify) {
+            service_name = OpenAPI_service_name_nnrf_nfm;
+            service_names_presence = true;
+            target_nf_type = OpenAPI_nf_type_NRF;
+            target_nf_type_presence = true;
+            if (!discovery_option->num_of_service_names)
+                ogs_sbi_discovery_option_add_service_names(
+                        discovery_option, service_name);
+            ogs_warn("[SCP] Transit nnrf-nfm inferred from URI [%s]",
+                    request->h.uri);
+        }
     }
 
     if (target_nf_type_presence || service_names_presence) {
         if (!target_nf_type_presence || !service_names_presence) {
-            ogs_error("[%s] No Mandatory Discovery [%d:%d]",
-                request->h.uri, target_nf_type, service_name);
+            ogs_error("[SCP] Routing failed: reason=incomplete-discovery "
+                    "target_nf_type=%d service=%d uri=%s",
+                    target_nf_type, service_name, request->h.uri);
 
             scp_assoc_remove(assoc);
             ogs_assert(true ==
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
-                    "Missing mandatory discovery header", request->h.uri,
-                    "MANDATORY_IE_MISSING"));
+                    "Incomplete discovery information", request->h.uri,
+                    OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
             return OGS_OK;
         }
 
         if (!target_nf_type || !service_name) {
-            ogs_error("[%s] Invalid Mandatory Discovery [%d:%d]",
-                request->h.uri, target_nf_type, service_name);
+            ogs_error("[SCP] Routing failed: reason=invalid-discovery "
+                    "target_nf_type=%d service=%d uri=%s",
+                    target_nf_type, service_name, request->h.uri);
 
             scp_assoc_remove(assoc);
             ogs_assert(true ==
                 ogs_sbi_server_send_error(stream,
                     OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
                     "Invalid mandatory discovery header", request->h.uri,
-                    "MANDATORY_IE_INCORRECT"));
+                    OGS_SBI_CAUSE_MANDATORY_IE_INCORRECT));
             return OGS_OK;
         }
 
-        if (target_nf_type == OpenAPI_nf_type_NRF)
+        if (target_nf_type == OpenAPI_nf_type_NRF) {
             client = NF_INSTANCE_CLIENT(ogs_sbi_self()->nrf_instance);
-        else {
+            if (!client) {
+                ogs_error("[SCP] Routing failed: reason=nrf-client-missing");
+                scp_assoc_remove(assoc);
+                ogs_assert(true ==
+                    ogs_sbi_server_send_error(stream,
+                        OGS_SBI_HTTP_STATUS_SERVICE_UNAVAILABLE, NULL,
+                        "NRF client not configured", request->h.uri,
+                        OGS_SBI_CAUSE_NRF_NOT_REACHABLE));
+                return OGS_OK;
+            }
+            ogs_info("[SCP] Route selected: target_nf_type=NRF service=%s "
+                    "source=configured-nrf",
+                    OpenAPI_service_name_ToString(service_name));
+        } else {
             if (discovery_option && discovery_option->target_nf_instance_id) {
                 nf_instance = ogs_sbi_nf_instance_find(
                         discovery_option->target_nf_instance_id);
@@ -800,8 +905,20 @@ static int request_handler(ogs_sbi_request_t *request, void *data)
     scp_assoc_remove(assoc);
 
     /***************************************
-     * Receive NOTIFICATION message from NRF
+     * Local SCP API only (nf-status-notify)
      ***************************************/
+    if (!ogs_sbi_nnrf_nfm_is_status_notify_uri(request->h.uri)) {
+        ogs_error("[SCP] Routing failed: reason=no-next-hop uri=%s "
+                "(transit must not reach local SCP handler)",
+                request->h.uri);
+        ogs_assert(true ==
+            ogs_sbi_server_send_error(stream,
+                OGS_SBI_HTTP_STATUS_BAD_REQUEST, NULL,
+                "Unable to determine SBI next-hop", request->h.uri,
+                OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+        return OGS_OK;
+    }
+
     ogs_assert(request);
     ogs_assert(data);
 
