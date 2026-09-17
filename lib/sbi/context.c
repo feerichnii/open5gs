@@ -2127,7 +2127,16 @@ static void nf_service_associate_client(ogs_sbi_nf_service_t *nf_service)
     ogs_sockaddr_t *addr = NULL, *addr6 = NULL;
     uint16_t port = 0;
 
-    ogs_assert(nf_service->scheme);
+    if (!nf_service) {
+        ogs_error("nf_service_associate_client: nf_service is NULL");
+        return;
+    }
+
+    if (!nf_service->scheme) {
+        ogs_error("nf_service_associate_client: missing scheme [id:%s]",
+                nf_service->id ? nf_service->id : "?");
+        return;
+    }
 
     /* At this point, CLIENT selection method is very simple. */
     if (nf_service->num_of_addr) {
@@ -2542,11 +2551,16 @@ bool ogs_sbi_discovery_param_is_matched(
     return true;
 }
 
-void ogs_sbi_client_associate(ogs_sbi_nf_instance_t *nf_instance)
+int ogs_sbi_client_associate(ogs_sbi_nf_instance_t *nf_instance)
 {
     ogs_sbi_client_t *client = NULL;
+    ogs_sbi_nf_service_t *nf_service = NULL;
+    bool any_client = false;
 
-    ogs_assert(nf_instance);
+    if (!nf_instance) {
+        ogs_error("Cannot associate SBI client: nf_instance is NULL");
+        return OGS_ERROR;
+    }
 
     client = nf_instance_find_client(nf_instance);
     if (client) {
@@ -2556,9 +2570,31 @@ void ogs_sbi_client_associate(ogs_sbi_nf_instance_t *nf_instance)
                 nf_instance->id);
 
         OGS_SBI_SETUP_CLIENT(nf_instance, client);
+        any_client = true;
     }
 
-    nf_service_associate_client_all(nf_instance);
+    ogs_list_for_each(&nf_instance->nf_service_list, nf_service) {
+        if (!nf_service->scheme) {
+            ogs_error("[%s] NFService missing scheme [id:%s]",
+                    nf_service->name ?
+                        OpenAPI_service_name_ToString(nf_service->name) : "?",
+                    nf_service->id ? nf_service->id : "?");
+            continue;
+        }
+        nf_service_associate_client(nf_service);
+        if (nf_service->client)
+            any_client = true;
+    }
+
+    if (!any_client) {
+        ogs_error("[%s] No usable SBI client after association [id:%s]",
+                nf_instance->nf_type ?
+                    OpenAPI_nf_type_ToString(nf_instance->nf_type) : "NULL",
+                nf_instance->id ? nf_instance->id : "?");
+        return OGS_ERROR;
+    }
+
+    return OGS_OK;
 }
 
 bool nf_instance_has_usable_client(ogs_sbi_nf_instance_t *nf_instance)
