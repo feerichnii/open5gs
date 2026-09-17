@@ -124,6 +124,7 @@
 
 #include "sbi/nnrf-build.h"
 #include "sbi/nnrf-profile-raw.h"
+#include "sbi/nnrf-profile-validate.h"
 #include "sbi/ogs-sbi-cause.h"
 #include "sbi/oauth.h"
 #include "sbi/jwt.h"
