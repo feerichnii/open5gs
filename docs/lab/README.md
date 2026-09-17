@@ -14,6 +14,7 @@
 | [open5gs_conformance_matrix.md](open5gs_conformance_matrix.md) | Матрица соответствия 3GPP |
 | [acceptance-checklist.md](acceptance-checklist.md) | Чек-лист приёмки MVP |
 | [upstream-pr-plan.md](upstream-pr-plan.md) | Набросок PR в upstream |
+| [open5gs_scp_3gpp_interop_fix.md](open5gs_scp_3gpp_interop_fix.md) | SCP routing fix (vendor CHF / Nnrf_NFManagement) |
 | [../error-matrix.md](../error-matrix.md) | Маппинг HTTP status → `cause` |
 
 ---
@@ -38,6 +39,8 @@
 | `a8eb926` | §10.3: сборка, form OAuth, SUPI digits/regex, SCP Bearer mint, CI meson |
 | `f65fd40` | §10.4: oauth до parse, PATCH→struct+raw, NRF 404 causes, scope check |
 | `af5f47d` | §10.5: probe-скрипт h2+Bearer, UDM Invalid* causes, PATCH cause |
+| `cdf753b` | docs/lab README changelog |
+| *(SCP routing)* | URI service inference; transit `nnrf-nfm` → configured NRF; local SM only `nf-status-notify` |
 
 Дифф относительно upstream-базы: **~56 файлов, +3200 / −250**.
 
@@ -107,12 +110,14 @@ lib/sbi/
 src/nrf/
   nrf-sm.c                # /oauth2/token до parse
   nnrf-handler.c          # register/PATCH/token/causes
-src/scp/sbi-path.c        # Discovery-* + Bearer mint
+src/scp/sbi-path.c        # Discovery-*, URI inference, NRF transit, Bearer mint
+src/scp/scp-sm.c          # local nf-status-notify only
 src/amf/                  # optional PCF, discovery params
 src/udm/                  # cause mapping
 tests/nrf/
   fixtures/vendor-pcf-profile.json
   raw-profile-discover.sh # live HTTP/2 probe
+tests/scp/routing-regression.sh
 .github/workflows/lab-model-d.yml
 ```
 
@@ -139,6 +144,17 @@ NRF_URL=http://127.0.0.1:7777 ./tests/nrf/raw-profile-discover.sh
 ```
 
 Скрипт использует **`--http2-prior-knowledge`**, получает Bearer через `/oauth2/token` и проверяет PUT → discovery/filters → PATCH → token negatives → 404 cause.
+
+### SCP routing (vendor CHF / Nnrf_NFManagement)
+
+```bash
+./tests/scp/routing-regression.sh
+# live:
+SCP_URL=http://scp:7777 NRF_HINT=http://172.16.7.100:18491 \
+  ./tests/scp/routing-regression.sh
+```
+
+Спека: [open5gs_scp_3gpp_interop_fix.md](open5gs_scp_3gpp_interop_fix.md).
 
 ### Fixture без NRF
 
