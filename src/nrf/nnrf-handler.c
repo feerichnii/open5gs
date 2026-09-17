@@ -87,6 +87,24 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
         return false;
     }
 
+    /* Strict TS 29.510 semantic validation before mutating NRF context */
+    {
+        ogs_nnrf_profile_validation_t verr;
+
+        if (ogs_nnrf_nfm_validate_nf_profile(
+                    NFProfile, nf_instance->id, &verr) != OGS_OK) {
+            ogs_error("NFRegister rejected: %s", verr.detail);
+            ogs_assert(true ==
+                ogs_sbi_server_send_error(stream,
+                    verr.status ? verr.status : OGS_SBI_HTTP_STATUS_BAD_REQUEST,
+                    recvmsg,
+                    verr.title ? verr.title : "Invalid NFProfile",
+                    verr.detail[0] ? verr.detail : NULL,
+                    verr.cause ? verr.cause : OGS_SBI_CAUSE_INVALID_MSG_FORMAT));
+            return false;
+        }
+    }
+
     /*
      * Reject non-positive heartBeatTimer before it reaches the timer layer.
      *
@@ -154,6 +172,10 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
          * Return failure and let the FSM dispatcher perform cleanup after the
          * transition to nrf_nf_state_exception.
          */
+        ogs_sbi_nf_service_remove_all(nf_instance);
+        ogs_sbi_nf_instance_clear(nf_instance);
+        ogs_sbi_nf_instance_clear_raw_profile(nf_instance);
+
         ogs_assert(true == ogs_sbi_server_send_error(
             stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST,
             recvmsg, "Invalid NFProfile", NFProfile->nf_instance_id,
@@ -171,7 +193,23 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
                     NFProfile->nf_instance_id);
     }
 
-    ogs_sbi_client_associate(nf_instance);
+    if (ogs_sbi_client_associate(nf_instance) != OGS_OK) {
+        ogs_error("NFProfile has no usable endpoint: id=%s type=%s",
+            nf_instance->id,
+            OpenAPI_nf_type_ToString(nf_instance->nf_type));
+
+        ogs_sbi_nf_service_remove_all(nf_instance);
+        ogs_sbi_nf_instance_clear(nf_instance);
+        ogs_sbi_nf_instance_clear_raw_profile(nf_instance);
+
+        ogs_assert(true ==
+            ogs_sbi_server_send_error(
+                stream, OGS_SBI_HTTP_STATUS_BAD_REQUEST, recvmsg,
+                "NFProfile has no usable endpoint", nf_instance->id,
+                OGS_SBI_CAUSE_MANDATORY_IE_MISSING));
+
+        return false;
+    }
 
     /* ---------------------------------------------------------- */
     /* Validate usable endpoint after association                 */
@@ -181,6 +219,10 @@ bool nrf_nnrf_handle_nf_register(ogs_sbi_nf_instance_t *nf_instance,
         ogs_error("NFProfile has no usable endpoint: id=%s type=%s",
             nf_instance->id,
             OpenAPI_nf_type_ToString(nf_instance->nf_type));
+
+        ogs_sbi_nf_service_remove_all(nf_instance);
+        ogs_sbi_nf_instance_clear(nf_instance);
+        ogs_sbi_nf_instance_clear_raw_profile(nf_instance);
 
         ogs_assert(true ==
             ogs_sbi_server_send_error(
