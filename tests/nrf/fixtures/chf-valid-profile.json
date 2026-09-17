@@ -1,0 +1,56 @@
+{
+  "nfInstanceId": "97986d02-4c4d-480d-b0e3-87de526bda20",
+  "nfType": "CHF",
+  "nfStatus": "REGISTERED",
+  "heartBeatTimer": 10,
+  "ipv4Addresses": ["172.16.74.1"],
+  "chfInfo": {
+    "groupId": "nx-chf"
+  },
+  "nfServiceList": {
+    "aaaaaaaa-1111-2222-3333-444444444401": {
+      "serviceInstanceId": "aaaaaaaa-1111-2222-3333-444444444401",
+      "serviceName": "nchf-convergedcharging",
+      "versions": [
+        {
+          "apiVersionInUri": "v1",
+          "apiFullVersion": "1.0.0"
+        }
+      ],
+      "scheme": "http",
+      "nfServiceStatus": "REGISTERED",
+      "ipEndPoints": [
+        {
+          "ipv4Address": "172.16.74.1",
+          "transport": "TCP",
+          "port": 29643
+        }
+      ],
+      "priority": 0,
+      "capacity": 100,
+      "load": 0
+    },
+    "aaaaaaaa-1111-2222-3333-444444444402": {
+      "serviceInstanceId": "aaaaaaaa-1111-2222-3333-444444444402",
+      "serviceName": "nchf-spendinglimitcontrol",
+      "versions": [
+        {
+          "apiVersionInUri": "v1",
+          "apiFullVersion": "1.0.0"
+        }
+      ],
+      "scheme": "http",
+      "nfServiceStatus": "REGISTERED",
+      "ipEndPoints": [
+        {
+          "ipv4Address": "172.16.74.1",
+          "transport": "TCP",
+          "port": 29643
+        }
+      ],
+      "priority": 0,
+      "capacity": 100,
+      "load": 0
+    }
+  }
+}

@@ -15,6 +15,7 @@
 | [acceptance-checklist.md](acceptance-checklist.md) | Чек-лист приёмки MVP |
 | [upstream-pr-plan.md](upstream-pr-plan.md) | Набросок PR в upstream |
 | [open5gs_scp_3gpp_interop_fix.md](open5gs_scp_3gpp_interop_fix.md) | SCP routing fix (vendor CHF / Nnrf_NFManagement) |
+| [open5gs_nrf_3gpp_compliance_hardening.md](open5gs_nrf_3gpp_compliance_hardening.md) | NRF NFRegister: strict NFProfile validation (400 vs crash) |
 | [../error-matrix.md](../error-matrix.md) | Маппинг HTTP status → `cause` |
 
 ---
@@ -41,6 +42,7 @@
 | `af5f47d` | §10.5: probe-скрипт h2+Bearer, UDM Invalid* causes, PATCH cause |
 | `cdf753b` | docs/lab README changelog |
 | *(SCP routing)* | URI service inference; transit `nnrf-nfm` → configured NRF; local SM only `nf-status-notify` |
+| *(NRF hardening)* | Strict NFProfile validation before register; safe client associate; rollback on failure |
 
 Дифф относительно upstream-базы: **~56 файлов, +3200 / −250**.
 
@@ -57,8 +59,9 @@
 | **E14-03** | Фильтры: `supi` (digit-range без `imsi-` + ERE `pattern`), `routing-indicator`, `nf-set-id`. `preferred-locality` — предпочтение (score), не жёсткий отсев. NF без диапазонов **не** отфильтровывается. |
 | **E14-04** | SCP/AMF пробрасывают `3gpp-Sbi-Discovery-supi/-routing-indicator/-nf-set-id/-preferred-locality`; AMF кладёт routing indicator / SUPI при discovery AUSF/UDM. |
 | **E14-08** | Fixture `tests/nrf/fixtures/vendor-pcf-profile.json` + живой прогон `tests/nrf/raw-profile-discover.sh`. |
+| **E14-hardening** | Strict TS 29.510 checks before import: NF-level addressing, map key == `serviceInstanceId`, unique ids, non-empty `apiFullVersion`. Malformed CHF → **400** ProblemDetails; associate failures roll back instance (not discoverable). |
 
-**Код:** `lib/sbi/nnrf-profile-raw.c/.h`, `src/nrf/nnrf-handler.c`, `src/nrf/nrf-sm.c`, `lib/sbi/message.c`, `lib/sbi/context.c`.
+**Код:** `lib/sbi/nnrf-profile-raw.c/.h`, `lib/sbi/nnrf-profile-validate.c/.h`, `src/nrf/nnrf-handler.c`, `src/nrf/nrf-sm.c`, `lib/sbi/message.c`, `lib/sbi/context.c`.
 
 ### E5 — OAuth2 (Nnrf_AccessToken, lab HS256)
 
@@ -104,19 +107,23 @@
 
 ```
 lib/sbi/
-  nnrf-profile-raw.c/.h   # raw NFProfile + filters
-  oauth.c/.h, jwt.c/.h    # token issue / verify
-  ogs-sbi-cause.h         # cause constants
+  nnrf-profile-raw.c/.h        # raw NFProfile + filters
+  nnrf-profile-validate.c/.h   # strict NFProfile semantic checks
+  oauth.c/.h, jwt.c/.h         # token issue / verify
+  ogs-sbi-cause.h              # cause constants
 src/nrf/
   nrf-sm.c                # /oauth2/token до parse
-  nnrf-handler.c          # register/PATCH/token/causes
+  nnrf-handler.c          # register/PATCH/token/causes + validate/rollback
 src/scp/sbi-path.c        # Discovery-*, URI inference, NRF transit, Bearer mint
 src/scp/scp-sm.c          # local nf-status-notify only
 src/amf/                  # optional PCF, discovery params
 src/udm/                  # cause mapping
 tests/nrf/
   fixtures/vendor-pcf-profile.json
-  raw-profile-discover.sh # live HTTP/2 probe
+  fixtures/chf-nexign-crash-profile.json
+  fixtures/chf-valid-profile.json
+  raw-profile-discover.sh   # live HTTP/2 probe
+  nfprofile-validate.sh     # malformed vs valid CHF register
 tests/scp/routing-regression.sh
 .github/workflows/lab-model-d.yml
 ```
@@ -160,7 +167,12 @@ SCP_URL=http://scp:7777 NRF_HINT=http://172.16.7.100:18491 \
 
 ```bash
 python3 tests/nrf/test_e14_08_fixture.py
+./tests/nrf/nfprofile-validate.sh          # offline fixture contract
+# live (NRF up, OAuth off or exempt for /nnrf-nfm):
+NRF_URL=http://127.0.0.1:7777 ./tests/nrf/nfprofile-validate.sh
 ```
+
+Спека: [open5gs_nrf_3gpp_compliance_hardening.md](open5gs_nrf_3gpp_compliance_hardening.md).
 
 ---
 
